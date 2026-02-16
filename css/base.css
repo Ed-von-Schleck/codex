@@ -1,0 +1,34 @@
+:root {
+    --bg-app: #0d0f12;
+    --bg-card: #161a1f;
+    --bg-input: #1f242d;
+    --text-main: #e2e8f0;
+    --text-dim: #718096;
+    --accent: #00d4ff;
+    --accent-glow: rgba(0, 212, 255, 0.3);
+    --success: #00ff9f;
+    --success-glow: rgba(0, 255, 159, 0.2);
+    --border-color: #2d3748;
+    
+    --symbol-size: 3.8rem;
+    --symbol-mini: 2rem;
+    --border-radius: 4px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: 'JetBrains Mono', monospace;
+    background-color: var(--bg-app);
+    background-image: radial-gradient(circle at 50% 50%, #1a202c 0%, #0d0f12 100%);
+    color: var(--text-main);
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+h1, h2, h3 { 
+    font-family: 'Rajdhani', sans-serif; 
+    text-transform: uppercase; 
+    letter-spacing: 2px; 
+}

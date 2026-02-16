@@ -1,0 +1,34 @@
+.symbol {
+    width: var(--symbol-size); height: var(--symbol-size);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.2rem; cursor: grab; user-select: none;
+    background-image: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.1) 100%);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4); border: 1px solid rgba(0,0,0,0.2);
+}
+
+.symbol.start-symbol { 
+    border: 1px solid rgba(255,255,255,0.2); 
+    box-shadow: 0 0 10px rgba(217, 83, 79, 0.3); 
+}
+
+.symbol.selected { 
+    outline: 2px solid var(--accent); 
+    outline-offset: 4px; 
+    transform: translateY(-3px); 
+}
+
+.symbol.replaced-symbol { 
+    outline: 1px solid var(--accent); 
+    box-shadow: 0 0 10px var(--accent-glow); 
+}
+
+.drop-zone {
+    width: var(--symbol-size); height: var(--symbol-size);
+    background: #000; border: 1px solid var(--border-color);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+
+.drop-zone:empty::after { 
+    content: ''; width: 6px; height: 6px; 
+    border: 1px solid #333; border-radius: 50%; 
+}

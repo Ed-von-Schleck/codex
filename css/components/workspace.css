@@ -1,0 +1,17 @@
+.sticky-palette-container {
+    position: sticky; top: 6rem;
+    background: rgba(22, 26, 31, 0.6); padding: 1.25rem;
+    margin-bottom: 2rem; border: 1px solid var(--border-color); z-index: 100;
+}
+
+.palette { display: flex; gap: 1.2rem; justify-content: center; }
+
+.rules-grid { display: flex; flex-direction: column; gap: 1rem; }
+
+.rule-form {
+    background: var(--bg-card); padding: 1.5rem;
+    display: flex; align-items: center; justify-content: center;
+    gap: 1.5rem; border: 1px solid var(--border-color);
+}
+
+.rule-arrow { font-size: 1.8rem; color: var(--text-dim); opacity: 0.3; }
