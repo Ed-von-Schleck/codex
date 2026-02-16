@@ -1,34 +1,103 @@
 .symbol {
-    width: var(--symbol-size); height: var(--symbol-size);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 2.2rem; cursor: grab; user-select: none;
-    background-image: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.1) 100%);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.4); border: 1px solid rgba(0,0,0,0.2);
+    width: var(--symbol-size); 
+    height: var(--symbol-size);
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    font-size: 2.2rem; 
+    cursor: grab; 
+    user-select: none;
+    
+    /* 1. Deep Base Gradient */
+    background-image: 
+        linear-gradient(rgba(255,255,255,0.15) 0%, transparent 5%, transparent 95%, rgba(0,0,0,0.3) 100%),
+        linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.2) 100%);
+    
+    /* 2. Physical Presence (Outward Shadow + Inward Bevel) */
+    box-shadow: 
+        0 4px 0px rgba(0,0,0,0.3),            /* Bottom 'thickness' shadow */
+        0 8px 15px rgba(0,0,0,0.5),           /* Soft drop shadow */
+        inset 0 2px 2px rgba(255,255,255,0.1); /* Top inner rim */
+
+    border: 1px solid rgba(0,0,0,0.4);
+    position: relative;
+    transition: all 0.15s ease-out;
+}
+
+/* 3. Scanline Texture Overlay */
+.symbol::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to bottom,
+        transparent 50%,
+        rgba(0,0,0,0.1) 50%
+    );
+    background-size: 100% 4px;
+    pointer-events: none;
+    opacity: 0.4;
+}
+
+/* 4. Character Glow */
+.symbol {
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+/* Specific glows based on background color index */
+/* (The background-color is set inline via JS, we just enhance it here) */
+.symbol:hover {
+    transform: translateY(-4px);
+    filter: brightness(1.2);
+    box-shadow: 
+        0 6px 0px rgba(0,0,0,0.4),
+        0 12px 20px rgba(0,0,0,0.6),
+        inset 0 2px 2px rgba(255,255,255,0.2);
 }
 
 .symbol.start-symbol { 
-    border: 1px solid rgba(255,255,255,0.2); 
-    box-shadow: 0 0 10px rgba(217, 83, 79, 0.3); 
+    border: 1px solid rgba(255,255,255,0.3); 
+    box-shadow: 0 0 15px rgba(217, 83, 79, 0.4); 
 }
 
 .symbol.selected { 
     outline: 2px solid var(--accent); 
     outline-offset: 4px; 
-    transform: translateY(-3px); 
+    transform: translateY(-4px) scale(1.05); 
 }
 
-.symbol.replaced-symbol { 
-    outline: 1px solid var(--accent); 
-    box-shadow: 0 0 10px var(--accent-glow); 
-}
-
+/* Re-styled Drop Zone */
 .drop-zone {
-    width: var(--symbol-size); height: var(--symbol-size);
-    background: #000; border: 1px solid var(--border-color);
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    width: var(--symbol-size); 
+    height: var(--symbol-size);
+    background: #050608; 
+    border: 1px solid var(--border-color);
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.8);
+    transition: all 0.2s ease;
 }
 
 .drop-zone:empty::after { 
-    content: ''; width: 6px; height: 6px; 
-    border: 1px solid #333; border-radius: 50%; 
+    content: '+'; 
+    font-family: 'Rajdhani', sans-serif;
+    color: #222;
+    font-size: 1.5rem;
+    font-weight: 300;
+}
+
+body.is-dragging .drop-zone:not([data-locked]),
+body.has-selection .drop-zone:not([data-locked]) {
+    border-color: var(--accent);
+    background-color: rgba(0, 212, 255, 0.03);
+    box-shadow: inset 0 0 15px rgba(0, 212, 255, 0.1);
+}
+
+.drop-zone.drag-over {
+    background-color: rgba(0, 212, 255, 0.1) !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 20px var(--accent-glow) !important;
 }

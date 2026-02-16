@@ -73,6 +73,12 @@ export function showDerivation(listItem, steps) {
 
     const visualizer = document.createElement('div');
     visualizer.className = 'derivation-visualizer';
+    
+    // Add a header for the "Data Log" look
+    const header = document.createElement('div');
+    header.className = 'visualizer-header';
+    header.textContent = 'DERIVATION LOG // RECONSTRUCTION';
+    visualizer.appendChild(header);
 
     steps.forEach((currentStep, i) => {
         const nextStep = steps[i + 1];
@@ -88,7 +94,7 @@ export function showDerivation(listItem, steps) {
         if (nextStep?.rule?.lhs) {
             const { rule } = nextStep;
             ruleDiv.appendChild(cloneSymbolForDisplay(document.getElementById(rule.lhs)));
-            ruleDiv.append('→');
+            ruleDiv.insertAdjacentHTML('beforeend', '<span class="rule-arrow-mini">→</span>');
             rule.rhs.forEach(id => ruleDiv.appendChild(cloneSymbolForDisplay(document.getElementById(id))));
         } else {
             ruleDiv.style.visibility = 'hidden';
@@ -98,21 +104,31 @@ export function showDerivation(listItem, steps) {
         visualizer.appendChild(stepDiv);
     });
 
+    // We must append it to the body hidden first to measure its final size
+    visualizer.style.visibility = 'hidden';
+    visualizer.style.display = 'block';
     document.body.appendChild(visualizer);
 
-    // Smart Positioning Logic
     const rect = listItem.getBoundingClientRect();
     const visRect = visualizer.getBoundingClientRect();
     
-    let top = rect.top;
-    let left = rect.left - visRect.width - 20; // Try left side
-
-    // If no room on left, try right
-    if (left < 10) {
-        left = rect.right + 20;
-    }
+    // Calculate vertical center
+    let top = rect.top + (rect.height / 2) - (visRect.height / 2);
     
-    // Fallback: If still no room (mobile), the CSS will center it via fixed positioning
-    visualizer.style.top = `${Math.max(10, Math.min(top, window.innerHeight - visRect.height - 10))}px`;
+    // Position to the LEFT of the sidebar (standard)
+    let left = rect.left - visRect.width - 30; 
+
+    // FLIP logic: If it goes off-screen left, put it on the right
+    if (left < 20) {
+        left = rect.right + 30;
+    }
+
+    // FINAL CLAMP: Keep it inside the viewport padding
+    const padding = 20;
+    top = Math.max(padding, Math.min(top, window.innerHeight - visRect.height - padding));
+    left = Math.max(padding, Math.min(left, window.innerWidth - visRect.width - padding));
+
+    visualizer.style.top = `${top}px`;
     visualizer.style.left = `${left}px`;
+    visualizer.style.visibility = 'visible';
 }

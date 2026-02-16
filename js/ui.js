@@ -71,11 +71,13 @@ export function selectSymbol(id) {
     selectedSymbolId = id;
     const el = document.getElementById(id);
     if (el) el.classList.add('selected');
+    document.body.classList.add('has-selection');
 }
 
 export function clearSelection() {
     selectedSymbolId = null;
     document.querySelectorAll('.symbol.selected').forEach(el => el.classList.remove('selected'));
+    document.body.classList.remove('has-selection');
 }
 
 export function getSelectedSymbolId() {

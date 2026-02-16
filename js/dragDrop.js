@@ -7,9 +7,11 @@ let draggedFromZone = null;
 export function handleDragStart(e) {
     e.dataTransfer.setData('text/plain', e.target.id);
     draggedFromZone = e.target.parentElement.classList.contains('drop-zone') ? e.target.parentElement : null;
+    document.body.classList.add('is-dragging');
 }
 
 export function handleDragEnd(e) {
+    document.body.classList.remove('is-dragging');
     if (draggedFromZone && e.dataTransfer.dropEffect === 'none') {
         draggedFromZone.innerHTML = '';
         draggedFromZone.dispatchEvent(new CustomEvent('grammarChanged', { bubbles: true }));
