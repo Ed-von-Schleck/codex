@@ -1,3 +1,4 @@
+/* Header Layout */
 .app-header {
     background: rgba(22, 26, 31, 0.9);
     backdrop-filter: blur(12px);
@@ -7,39 +8,64 @@
 }
 
 .header-content {
-    max-width: 1300px; margin: 0 auto;
+    max-width: 1400px; margin: 0 auto;
     display: flex; align-items: center; justify-content: space-between;
 }
 
-.brand-group h1 { margin: 0; font-size: 1.8rem; color: var(--accent); text-shadow: 0 0 15px var(--accent-glow); }
-#game-seed-display { font-size: 0.7rem; color: var(--text-dim); opacity: 0.5; }
+/* ... existing brand and status styles ... */
 
-.status-group { flex-grow: 1; display: flex; justify-content: center; }
-
-.progress-wrapper {
-    display: flex; align-items: center; gap: 1rem;
-    background: #000; padding: 0.4rem 1rem; border: 1px solid var(--border-color);
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
 }
 
-.progress-track { width: 150px; height: 4px; background: #222; }
-
-#progress-fill { 
-    width: 0%; height: 100%; 
-    background: var(--success); 
-    box-shadow: 0 0 10px var(--success); 
-    transition: width 0.4s; 
+.github-link {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-decoration: none;
+    letter-spacing: 1px;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s;
+    opacity: 0.6;
 }
 
+.github-link:hover {
+    color: var(--accent);
+    opacity: 1;
+    border-bottom-color: var(--accent);
+}
+
+#menu-button {
+    background: transparent; 
+    border: 1px solid var(--accent); 
+    color: var(--accent);
+    padding: 0.4rem 1rem; 
+    font-size: 0.8rem; 
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+/* Game Container Adjustments */
 .game-container {
     display: grid; 
-    grid-template-columns: 1fr 320px; /* Reduced from 380px */
+    grid-template-columns: 1fr 320px;
     gap: 2rem;
     max-width: 1300px; 
     margin: 2rem auto; 
     padding: 0 1.5rem;
 }
 
+/* Remove old app-footer styles */
+.app-footer { display: none; }
+
 @media (max-width: 1000px) {
     .game-container { grid-template-columns: 1fr; }
     .sidebar { order: 2; margin-top: 2rem; width: 100%; }
+    
+    .github-link { display: none; } /* Hide text on mobile to save space */
 }
