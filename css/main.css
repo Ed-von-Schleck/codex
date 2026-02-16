@@ -1,0 +1,279 @@
+/* --- 1. DESIGN TOKENS & RESET --- */
+:root {
+    --bg-app: #121212;
+    --bg-card: #1e1e1e;
+    --bg-input: #2a2a2a;
+    --text-main: #e0e0e0;
+    --text-dim: #a0a0a0;
+    --accent: #4dabf7;
+    --accent-glow: rgba(77, 171, 247, 0.4);
+    --success: #40c057;
+    --border-color: #333;
+    
+    --symbol-size: 3.5rem;
+    --border-radius: 8px;
+    --shadow: 0 10px 20px rgba(0,0,0,0.4);
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-app);
+    color: var(--text-main);
+    line-height: 1.5;
+    overflow-x: hidden;
+}
+
+/* --- 2. HEADER --- */
+.app-header {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+}
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.app-header h1 { margin: 0; font-size: 1.25rem; color: var(--accent); }
+#game-progress { font-weight: bold; color: var(--success); }
+#game-seed-display { font-family: monospace; font-size: 0.8rem; color: var(--text-dim); }
+
+/* --- 3. CORE LAYOUT --- */
+.game-container {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    align-items: start;
+}
+
+/* --- 4. PALETTE & WORKSPACE --- */
+.sticky-palette-container {
+    position: sticky;
+    top: 5rem;
+    background: var(--bg-card);
+    padding: 1.25rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+    z-index: 100;
+}
+.palette {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.rules-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.rule-form {
+    background: var(--bg-card);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    border: 1px solid var(--border-color);
+}
+.rule-arrow { font-size: 1.5rem; color: var(--text-dim); }
+
+/* --- 5. DROP ZONES --- */
+.drop-zone {
+    width: var(--symbol-size);
+    height: var(--symbol-size);
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+.drop-zone:empty::before { 
+    content: '+'; 
+    color: var(--border-color); 
+    font-size: 1.5rem; 
+    font-weight: 300;
+}
+.drop-zone.drag-over { 
+    border-color: var(--accent); 
+    background: rgba(77, 171, 247, 0.1); 
+    transform: scale(1.05);
+}
+.drop-zone:not(:empty) { 
+    border-style: solid; 
+    border-color: transparent; 
+}
+
+/* --- 6. SYMBOLS (TILES) --- */
+.symbol {
+    width: var(--symbol-size);
+    height: var(--symbol-size);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    cursor: grab;
+    user-select: none;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+.symbol.start-symbol { 
+    outline: 3px double rgba(255,255,255,0.5);
+    outline-offset: -6px;
+}
+.symbol:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.3); }
+
+/* Tap-to-Place Selection */
+.symbol.selected {
+    outline: 4px solid var(--accent);
+    outline-offset: 4px;
+    transform: scale(1.1) translateY(-4px);
+    box-shadow: 0 8px 20px var(--accent-glow);
+    z-index: 10;
+}
+
+/* --- 7. EXAMPLES & SIDEBAR --- */
+.sidebar {
+    background: var(--bg-card);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    position: sticky;
+    top: 5rem;
+}
+.sidebar h2 { margin-top: 0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; }
+.instruction { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1.5rem; }
+
+.examples-list { list-style: none; padding: 0; margin: 0; }
+.examples-list li {
+    padding: 0.75rem;
+    margin-bottom: 0.6rem;
+    background: var(--bg-input);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-left: 5px solid transparent;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.examples-list li:hover { background: #333; }
+.examples-list li.is-valid { 
+    border-left-color: var(--success); 
+    background: rgba(64, 192, 87, 0.08); 
+}
+.example-content-wrapper { display: flex; gap: 0.3rem; pointer-events: none; }
+.examples-list .symbol { 
+    width: 1.8rem; height: 1.8rem; 
+    font-size: 1rem; border-radius: 4px; 
+    cursor: default; box-shadow: none; 
+}
+
+/* --- 8. DERIVATION VISUALIZER (POP-UP) --- */
+.derivation-visualizer {
+    position: fixed;
+    z-index: 1000;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    max-width: 450px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+.derivation-visualizer .step {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--bg-input);
+}
+.derivation-visualizer .step:last-child { border-bottom: none; }
+.derivation-visualizer .step-sequence { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.derivation-visualizer .step-rule {
+    margin-left: auto;
+    background: var(--bg-input);
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: monospace;
+    font-size: 0.8rem;
+}
+.derivation-visualizer .symbol { width: 1.4rem; height: 1.4rem; font-size: 0.8rem; box-shadow: none; }
+.symbol.replaced-symbol {
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+    background-image: linear-gradient(rgba(255,255,255,0.2), transparent);
+}
+
+/* --- 9. OVERLAYS & BUTTONS --- */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+.overlay.hidden { display: none; }
+.overlay-card {
+    background: var(--bg-card);
+    padding: 3rem;
+    border-radius: 16px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    border: 1px solid var(--border-color);
+}
+.overlay-actions { display: flex; flex-direction: column; gap: 1rem; margin-top: 2rem; }
+
+button {
+    padding: 0.8rem 1.5rem;
+    border-radius: var(--border-radius);
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: transform 0.1s, opacity 0.2s;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-secondary { background: var(--bg-input); color: white; }
+button:active { transform: scale(0.98); }
+
+/* --- 10. MOBILE ADAPTATION --- */
+@media (max-width: 900px) {
+    .game-container { grid-template-columns: 1fr; margin: 1rem auto; }
+    .sidebar { order: 2; position: static; }
+    .workspace { order: 1; }
+    .sticky-palette-container { top: 4.5rem; padding: 0.75rem; }
+    .derivation-visualizer {
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        width: 95vw;
+    }
+}
