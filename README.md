@@ -16,4 +16,4 @@ CODEX is built entirely in vanilla JavaScript, utilizing no external frameworks 
 2.  Run `python -m http.server` (or some other static file server) inside the root directory.
 
 ### License
-MIT License. Feel free to fork, study, or expand upon the parsing logic.
+MIT License.

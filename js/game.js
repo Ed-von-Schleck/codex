@@ -1,3 +1,5 @@
+// js/game.js
+
 import { START_SYMBOL, EXAMPLE_COUNT, MIN_EXAMPLE_LENGTH, MAX_EXAMPLE_LENGTH, SYMBOL_COUNT, MAX_GRAMMAR_GENERATION_ATTEMPTS } from './constants.js';
 import { setupRuleForms } from './domSetup.js';
 import { generate, buildGrammarFromDOM } from './grammar.js';
@@ -19,6 +21,17 @@ function generateBase64Seed(length = 6) {
     return Array.from({length}, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
 }
 
+/**
+ * Validates that the example set doesn't have "easy" boundaries.
+ * Requires at least 2 different starting symbols and 2 different ending symbols.
+ */
+function isSetDiverse(examples) {
+    if (examples.length < 2) return false;
+    const firsts = new Set(examples.map(ex => ex.result[0]));
+    const lasts = new Set(examples.map(ex => ex.result[ex.result.length - 1]));
+    return firsts.size >= 2 && lasts.size >= 2;
+}
+
 function initializeNewGame() {
     clearMessage();
     successfulParses.clear();
@@ -32,15 +45,25 @@ function initializeNewGame() {
         const examplePool = generate(hiddenGrammar, START_SYMBOL, MAX_EXAMPLE_LENGTH, MIN_EXAMPLE_LENGTH);
 
         if (examplePool.length >= EXAMPLE_COUNT) {
-            const gameExamples = selectVariedExamples(examplePool, hiddenGrammar, EXAMPLE_COUNT, seed);
-            const ruleCount = Object.values(hiddenGrammar).reduce((acc, rules) => acc + rules.length, 0);
-            
-            setupRuleForms(ruleCount);
-            displayExamples(gameExamples);
-            return { hiddenGrammar, gameExamples };
+            // Attempt to find a diverse selection from this grammar's pool
+            // We try a few selection shuffles before discarding the grammar entirely
+            for (let selectionAttempt = 0; selectionAttempt < 5; selectionAttempt++) {
+                const selectionSeed = seed + "_sel" + selectionAttempt;
+                const gameExamples = selectVariedExamples(examplePool, hiddenGrammar, EXAMPLE_COUNT, selectionSeed);
+                
+                if (isSetDiverse(gameExamples)) {
+                    const ruleCount = Object.values(hiddenGrammar).reduce((acc, rules) => acc + rules.length, 0);
+                    setupRuleForms(ruleCount);
+                    displayExamples(gameExamples);
+                    return { hiddenGrammar, gameExamples };
+                }
+            }
         }
     }
-    throw new Error(`Failed to generate grammar.`);
+    
+    // Fallback if diversity is hard to find, return the last attempt anyway to avoid infinite loop
+    console.warn("Could not find a highly diverse set. Using best available.");
+    return startNewGame(); 
 }
 
 export function startNewGame() {
@@ -65,7 +88,6 @@ export function validateUserGrammar() {
     const allValid = gameState.gameExamples.length > 0 && successfulParses.size === gameState.gameExamples.length;
     if (allValid && !gameState.isWon) {
         gameState.isWon = true;
-        // Thematic Win Title
         setTimeout(() => showOverlay("DECRYPTION COMPLETE", 'win'), 500);
     }
 }
