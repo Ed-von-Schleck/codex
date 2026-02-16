@@ -6,7 +6,7 @@ import { showDerivation, hideDerivation } from './derivationVisualizer.js';
 
 function setupMenuEvents() {
     ui.menuButton.addEventListener('click', () => {
-        showOverlay('Game Menu', 'menu');
+        showOverlay('SYSTEM MENU', 'menu');
     });
 
     ui.overlayNewGameButton.addEventListener('click', () => {
@@ -22,7 +22,7 @@ function setupMenuEvents() {
         if (isOverlayVisible) {
             hideOverlay();
         } else {
-            showOverlay('Game Menu', 'menu');
+            showOverlay('SYSTEM MENU', 'menu');
         }
     });
 

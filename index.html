@@ -3,16 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grammar Quest</title>
+    <title>CODEX</title>
+    <!-- Thematic Typography: Rajdhani for headers, JetBrains Mono for UI elements -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
     <header class="app-header">
         <div class="header-content">
-            <h1>Grammar Quest</h1>
-            <div id="game-progress">Progress: 0/7</div>
-            <div id="game-seed-display"></div>
-            <button id="menu-button" aria-label="Menu">Menu</button>
+            <div class="brand-group">
+                <h1>CODEX</h1>
+                <div id="game-seed-display"></div>
+            </div>
+            
+            <div class="status-group">
+                <div class="progress-wrapper">
+                    <span id="game-progress-label">ANALYSIS:</span>
+                    <span id="game-progress">0/7</span>
+                    <div class="progress-track">
+                        <div id="progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="menu-button" aria-label="Menu">MENU</button>
         </div>
     </header>
 
@@ -30,8 +46,10 @@
 
         <!-- Section 2: Verification -->
         <section class="sidebar">
-            <h2>Target Strings</h2>
-            <p class="instruction">Build rules to match all examples below.</p>
+            <div class="sidebar-header">
+                <h2>Target Strings</h2>
+                <p class="instruction">Reconstruct the sequence logic to match all examples.</p>
+            </div>
             <ul id="examples-list" class="examples-list"></ul>
         </section>
     </main>
@@ -39,10 +57,10 @@
     <!-- Unified Overlay for Menus and Win Screens -->
     <div id="workspace-overlay" class="overlay hidden">
         <div class="overlay-card">
-            <h2 id="overlay-title">Game Menu</h2>
+            <h2 id="overlay-title">SYSTEM MENU</h2>
             <div class="overlay-actions">
-                <button id="overlay-new-game-button" class="btn-primary">New Game</button>
-                <button onclick="document.getElementById('workspace-overlay').classList.add('hidden')" class="btn-secondary">Resume</button>
+                <button id="overlay-new-game-button" class="btn-primary">INITIATE NEW SEQUENCE</button>
+                <button onclick="document.getElementById('workspace-overlay').classList.add('hidden')" class="btn-secondary">RESUME ANALYSIS</button>
             </div>
         </div>
     </div>

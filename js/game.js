@@ -15,7 +15,7 @@ let gameState = {
 let successfulParses = new Map();
 
 function generateBase64Seed(length = 6) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     return Array.from({length}, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
 }
 
@@ -65,7 +65,8 @@ export function validateUserGrammar() {
     const allValid = gameState.gameExamples.length > 0 && successfulParses.size === gameState.gameExamples.length;
     if (allValid && !gameState.isWon) {
         gameState.isWon = true;
-        setTimeout(() => showOverlay("Puzzle Solved!", 'win'), 500);
+        // Thematic Win Title
+        setTimeout(() => showOverlay("DECRYPTION COMPLETE", 'win'), 500);
     }
 }
 

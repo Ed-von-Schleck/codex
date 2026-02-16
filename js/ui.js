@@ -10,14 +10,15 @@ export function initUI() {
     ui.overlayTitle = document.getElementById('overlay-title');
     ui.overlayNewGameButton = document.getElementById('overlay-new-game-button');
     ui.gameSeedDisplay = document.getElementById('game-seed-display');
-    ui.progressDisplay = document.getElementById('game-progress'); // Added progress tracker
+    ui.progressDisplay = document.getElementById('game-progress');
+    ui.progressFill = document.getElementById('progress-fill'); // New visual bar
 }
 
 export function displayMessage(message) { console.log(message); }
 export function clearMessage() {}
 
 export function displaySeed(seed) {
-    if (ui.gameSeedDisplay) ui.gameSeedDisplay.textContent = `Seed: ${seed}`;
+    if (ui.gameSeedDisplay) ui.gameSeedDisplay.textContent = `SEQ_ID: ${seed}`;
 }
 
 export function displayExamples(examples) {
@@ -36,14 +37,17 @@ export function updateValidationStatus(exampleIndex, isParsable) {
     const li = ui.examplesList.querySelector(`li[data-example-id='${exampleIndex}']`);
     if (li) li.classList.toggle('is-valid', isParsable);
     
-    // Calculate total progress
     const total = ui.examplesList.querySelectorAll('li').length;
     const solved = ui.examplesList.querySelectorAll('li.is-valid').length;
     updateProgress(solved, total);
 }
 
 function updateProgress(solved, total) {
-    if (ui.progressDisplay) ui.progressDisplay.textContent = `Progress: ${solved}/${total}`;
+    if (ui.progressDisplay) ui.progressDisplay.textContent = `${solved}/${total}`;
+    if (ui.progressFill) {
+        const percentage = total > 0 ? (solved / total) * 100 : 0;
+        ui.progressFill.style.width = `${percentage}%`;
+    }
 }
 
 export function showOverlay(title = '', type = 'menu') {
@@ -55,11 +59,9 @@ export function hideOverlay() {
     ui.workspaceOverlay.classList.add('hidden');
 }
 
-
 let selectedSymbolId = null;
 
 export function selectSymbol(id) {
-    // Toggle selection
     if (selectedSymbolId === id) {
         clearSelection();
         return;
