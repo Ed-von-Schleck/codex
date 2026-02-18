@@ -1,6 +1,6 @@
 // js/domSetup.js
 
-import { SYMBOL_COUNT, SYMBOL_COLORS, SYMBOL_CHARACTERS, START_SYMBOL } from './constants.js';
+import { SYMBOL_COLORS, SYMBOL_CHARACTERS, START_SYMBOL } from './constants.js';
 import { handleDragStart, handleDragEnd, handleDragOver, handleDragLeave, handleDrop, handleZoneClick } from './dragDrop.js';
 import { selectSymbol } from './ui.js';
 
@@ -16,13 +16,12 @@ function createSymbolElement(symbolId) {
     el.draggable = true;
     el.addEventListener('dragstart', handleDragStart);
     el.addEventListener('dragend', handleDragEnd);
-    
-    // Add Tap-to-Place Selection
+
     el.addEventListener('click', (e) => {
         e.stopPropagation();
         selectSymbol(el.id);
     });
-    
+
     return el;
 }
 
@@ -32,7 +31,7 @@ function createDropZone() {
     zone.addEventListener('dragover', handleDragOver);
     zone.addEventListener('dragleave', handleDragLeave);
     zone.addEventListener('drop', handleDrop);
-    zone.addEventListener('click', handleZoneClick); // Tap-to-Place
+    zone.addEventListener('click', handleZoneClick);
     return zone;
 }
 
@@ -44,24 +43,36 @@ export function createRuleForm() {
     arrow.className = 'rule-arrow';
     arrow.innerHTML = '&rarr;';
 
-    const lhs = createDropZone();
-    form.appendChild(lhs);
+    form.appendChild(createDropZone());
     form.appendChild(arrow);
-
     form.appendChild(createDropZone());
     form.appendChild(createDropZone());
 
     return form;
 }
 
-export function setupPalette() {
+/**
+ * Rebuilds the symbol palette for the given difficulty symbol count.
+ * Always clears the palette first so switching difficulty never leaves
+ * stale symbols behind.
+ *
+ * Must be called BEFORE setupRuleForms — the rule form builder clones
+ * the start-symbol element directly from the live palette.
+ */
+export function setupPalette(symbolCount) {
     const palette = document.getElementById('symbol-palette');
     palette.innerHTML = '';
-    for (let i = 1; i <= SYMBOL_COUNT; i++) {
+    for (let i = 1; i <= symbolCount; i++) {
         palette.appendChild(createSymbolElement(i));
     }
 }
 
+/**
+ * Rebuilds the rule form grid for the given number of rules.
+ * The first form's LHS zone is locked to the start symbol (symbol 1).
+ *
+ * Requires the palette to already contain a live element with id === START_SYMBOL.
+ */
 export function setupRuleForms(ruleCount) {
     const rulesList = document.getElementById('rules-list');
     rulesList.innerHTML = '';
@@ -74,9 +85,9 @@ export function setupRuleForms(ruleCount) {
         const form = createRuleForm();
 
         if (i === 0) {
-            const lhsZone = form.querySelector('.drop-zone');
+            const lhsZone     = form.querySelector('.drop-zone');
             const lockedSymbol = startSymbolEl.cloneNode(true);
-            
+
             lockedSymbol.draggable = false;
             lockedSymbol.style.cursor = 'default';
 
@@ -85,7 +96,7 @@ export function setupRuleForms(ruleCount) {
             lhsZone.removeEventListener('drop', handleDrop);
             lhsZone.appendChild(lockedSymbol);
         }
-        
+
         rulesList.appendChild(form);
     }
 }
