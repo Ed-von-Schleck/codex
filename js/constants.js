@@ -10,4 +10,4 @@ export const EXAMPLE_COUNT = 7;
 export const MIN_EXAMPLE_LENGTH = 5;
 export const MAX_EXAMPLE_LENGTH = 5;
 
-export const MAX_GRAMMAR_GENERATION_ATTEMPTS = 50;
+export const MAX_GRAMMAR_GENERATION_ATTEMPTS = 500;

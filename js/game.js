@@ -32,6 +32,16 @@ function isSetDiverse(examples) {
     return firsts.size >= 2 && lasts.size >= 2;
 }
 
+/**
+ * Applies a grammar + example set to the DOM, shared by the success path
+ * and the fallback path.
+ */
+function applyGameSetup(hiddenGrammar, gameExamples) {
+    const ruleCount = Object.values(hiddenGrammar).reduce((acc, rules) => acc + rules.length, 0);
+    setupRuleForms(ruleCount);
+    displayExamples(gameExamples);
+}
+
 function initializeNewGame() {
     clearMessage();
     successfulParses.clear();
@@ -39,31 +49,55 @@ function initializeNewGame() {
     const baseSeed = generateBase64Seed(6);
     displaySeed(baseSeed);
 
+    // Track the best candidate found so far in case we exhaust all attempts
+    // without ever hitting the diversity requirement. This replaces the old
+    // recursive fallback which could loop indefinitely.
+    let bestFallback = null;
+
     for (let i = 0; i < MAX_GRAMMAR_GENERATION_ATTEMPTS; i++) {
         const seed = baseSeed + i;
         const hiddenGrammar = generateRandomGrammar(SYMBOL_COUNT, 3, seed);
         const examplePool = generate(hiddenGrammar, START_SYMBOL, MAX_EXAMPLE_LENGTH, MIN_EXAMPLE_LENGTH);
 
-        if (examplePool.length >= EXAMPLE_COUNT) {
-            // Attempt to find a diverse selection from this grammar's pool
-            // We try a few selection shuffles before discarding the grammar entirely
-            for (let selectionAttempt = 0; selectionAttempt < 5; selectionAttempt++) {
-                const selectionSeed = seed + "_sel" + selectionAttempt;
-                const gameExamples = selectVariedExamples(examplePool, hiddenGrammar, EXAMPLE_COUNT, selectionSeed);
-                
-                if (isSetDiverse(gameExamples)) {
-                    const ruleCount = Object.values(hiddenGrammar).reduce((acc, rules) => acc + rules.length, 0);
-                    setupRuleForms(ruleCount);
-                    displayExamples(gameExamples);
-                    return { hiddenGrammar, gameExamples };
-                }
+        if (examplePool.length < EXAMPLE_COUNT) continue;
+
+        // Try a few selection shuffles before discarding this grammar entirely.
+        for (let selectionAttempt = 0; selectionAttempt < 5; selectionAttempt++) {
+            const selectionSeed = seed + '_sel' + selectionAttempt;
+            const gameExamples = selectVariedExamples(examplePool, hiddenGrammar, EXAMPLE_COUNT, selectionSeed);
+
+            // Always keep the first viable (even if not diverse) result as a
+            // fallback so we have something concrete to return if needed.
+            if (!bestFallback && gameExamples.length >= EXAMPLE_COUNT) {
+                bestFallback = { hiddenGrammar, gameExamples };
+            }
+
+            if (isSetDiverse(gameExamples)) {
+                applyGameSetup(hiddenGrammar, gameExamples);
+                return { hiddenGrammar, gameExamples };
             }
         }
     }
-    
-    // Fallback if diversity is hard to find, return the last attempt anyway to avoid infinite loop
-    console.warn("Could not find a highly diverse set. Using best available.");
-    return startNewGame(); 
+
+    // We exhausted all attempts without finding a perfectly diverse set.
+    // Use the best viable candidate we recorded along the way. In practice
+    // this path is never reached with MAX_GRAMMAR_GENERATION_ATTEMPTS = 500,
+    // but it guarantees the function always returns something valid without
+    // recursing back into startNewGame().
+    if (bestFallback) {
+        console.warn('CODEX: Could not find a perfectly diverse example set after', MAX_GRAMMAR_GENERATION_ATTEMPTS, 'attempts. Using best available candidate.');
+        applyGameSetup(bestFallback.hiddenGrammar, bestFallback.gameExamples);
+        return bestFallback;
+    }
+
+    // Absolute last resort: this should be unreachable in any real configuration,
+    // but satisfies the type contract so callers never receive undefined.
+    console.error('CODEX: Grammar generation failed entirely. Check SYMBOL_COUNT and EXAMPLE_COUNT configuration.');
+    const emergencyGrammar = generateRandomGrammar(SYMBOL_COUNT, 3, baseSeed);
+    const emergencyPool = generate(emergencyGrammar, START_SYMBOL, MAX_EXAMPLE_LENGTH, MIN_EXAMPLE_LENGTH);
+    const emergencyExamples = emergencyPool.slice(0, EXAMPLE_COUNT);
+    applyGameSetup(emergencyGrammar, emergencyExamples);
+    return { hiddenGrammar: emergencyGrammar, gameExamples: emergencyExamples };
 }
 
 export function startNewGame() {
