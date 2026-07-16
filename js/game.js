@@ -2,14 +2,16 @@
 
 import { START_SYMBOL, SYMBOL_COUNT, MAX_GRAMMAR_GENERATION_ATTEMPTS } from './constants.js';
 import { DIFFICULTIES, DEFAULT_DIFFICULTY_KEY } from './difficulty.js';
-import { setupPalette, setupRuleForms } from './domSetup.js';
+import { setupPalette, setupRuleForms, readFormStates, applyHintToDOM } from './domSetup.js';
 import { generate, buildGrammarFromDOM } from './grammar.js';
 import { generateRandomGrammar } from './grammarGenerator.js';
 import { parse, reconstructParseTree } from './parse.js';
-import { displayExamples, updateValidationStatus, clearMessage, showOverlay, displaySeed, displayDifficulty } from './ui.js';
+import { displayExamples, updateValidationStatus, clearMessage, showOverlay,
+         displaySeed, displayDifficulty, setHintButtonEnabled } from './ui.js';
 import { selectVariedExamples } from './exampleSelector.js';
 import { generateDerivationSteps } from './derivationVisualizer.js';
 import { setGameParamsInURL } from './urlManager.js';
+import { computeHint } from './hints.js';
 
 // ---------------------------------------------------------------------------
 // Module state
@@ -21,39 +23,27 @@ let gameState = {
     hiddenGrammar: null,
     gameExamples:  [],
     isWon:         false,
+    hintCount:     0,
 };
 
 let successfulParses = new Map();
 
 // ---------------------------------------------------------------------------
-// Public API
+// Public API — difficulty
 // ---------------------------------------------------------------------------
 
-/**
- * Returns the key of the currently active difficulty.
- * Used by eventHandlers to initialise the difficulty button highlight
- * correctly when the difficulty has been set from a URL parameter before
- * the event listeners are attached.
- */
 export function getActiveDifficultyKey() {
     return activeDifficulty.key;
 }
 
-/**
- * Change the difficulty used the next time startNewGame() is called.
- * Does not restart the current game.
- */
 export function setDifficulty(key) {
     activeDifficulty = DIFFICULTIES[key] ?? DIFFICULTIES[DEFAULT_DIFFICULTY_KEY];
 }
 
-/**
- * Starts a new game.
- *
- * @param {string|null} seedOverride — if provided, the game is generated from
- *   this specific base seed instead of a freshly generated one. Passing a seed
- *   from the URL allows seeded game replay. Pass null (default) for a random game.
- */
+// ---------------------------------------------------------------------------
+// Public API — game lifecycle
+// ---------------------------------------------------------------------------
+
 export function startNewGame(seedOverride = null) {
     const { hiddenGrammar, gameExamples, baseSeed } =
         initializeNewGame(activeDifficulty, seedOverride);
@@ -61,18 +51,18 @@ export function startNewGame(seedOverride = null) {
     gameState.hiddenGrammar = hiddenGrammar;
     gameState.gameExamples  = gameExamples;
     gameState.isWon         = false;
+    gameState.hintCount     = 0;
 
-    // Keep the URL in sync with the committed game so the address bar is always
-    // shareable. Uses replaceState — no history entry is added.
+    setHintButtonEnabled(true);
     setGameParamsInURL(baseSeed, activeDifficulty.key);
-
-    // Header reflects the difficulty of the game that actually started,
-    // which may differ from the selector state if the player changed
-    // difficulty in the menu without starting a new game.
     displayDifficulty(activeDifficulty.label);
 
     validateUserGrammar();
 }
+
+// ---------------------------------------------------------------------------
+// Public API — validation
+// ---------------------------------------------------------------------------
 
 export function validateUserGrammar() {
     const userGrammar = buildGrammarFromDOM();
@@ -91,9 +81,20 @@ export function validateUserGrammar() {
 
     if (allValid && !gameState.isWon) {
         gameState.isWon = true;
-        setTimeout(() => showOverlay('DECRYPTION COMPLETE', 'win'), 500);
+        setHintButtonEnabled(false);
+        // hintCount is captured now; the closure reads the live value at fire
+        // time, which is correct because hintCount is incremented synchronously
+        // before applyHintToDOM triggers validateUserGrammar.
+        setTimeout(
+            () => showOverlay('DECRYPTION COMPLETE', 'win', gameState.hintCount),
+            500
+        );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Public API — derivation visualiser
+// ---------------------------------------------------------------------------
 
 export function getDerivationSteps(exampleId) {
     const parseTable = successfulParses.get(exampleId);
@@ -103,6 +104,44 @@ export function getDerivationSteps(exampleId) {
         if (parseTree) return generateDerivationSteps(parseTree);
     }
     return null;
+}
+
+// ---------------------------------------------------------------------------
+// Public API — hint system
+// ---------------------------------------------------------------------------
+
+/**
+ * Computes and applies the next hint.
+ *
+ * The hint computation NEVER references the hidden grammar directly as a
+ * target — it searches for any valid grammar consistent with what the
+ * player has already placed. See hints.js for the full algorithm.
+ *
+ * hintCount is incremented BEFORE the DOM placement so that if placing the
+ * hinted symbol wins the game, the win overlay's 500 ms closure sees the
+ * correct (already-incremented) count.
+ */
+export function getAndApplyHint() {
+    if (gameState.isWon) return;
+
+    setHintButtonEnabled(false);
+
+    const formStates = readFormStates();
+    const hint = computeHint(
+        gameState.hiddenGrammar,
+        formStates,
+        gameState.gameExamples,
+        activeDifficulty.symbols
+    );
+
+    if (hint) {
+        gameState.hintCount++;      // increment before DOM placement (see above)
+        applyHintToDOM(hint);
+    }
+
+    if (!gameState.isWon) {
+        setHintButtonEnabled(true);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -116,11 +155,6 @@ function generateBase64Seed(length = 6) {
     ).join('');
 }
 
-/**
- * Validates that the example set is not trivially solvable from string
- * boundaries alone. Requires at least 2 distinct first symbols and 2 distinct
- * last symbols across the full example set.
- */
 function isSetDiverse(examples) {
     if (examples.length < 2) return false;
     const firsts = new Set(examples.map(ex => ex.result[0]));
@@ -130,32 +164,16 @@ function isSetDiverse(examples) {
 
 /**
  * Writes a validated game setup to the DOM.
- *
- * ORDER IS CRITICAL: setupPalette must precede setupRuleForms because
- * setupRuleForms clones the start-symbol element out of the live palette.
+ * ORDER IS CRITICAL: setupPalette before setupRuleForms.
  */
 function applyGameSetup(hiddenGrammar, gameExamples, difficulty) {
     setupPalette(difficulty.symbols);
-
     const ruleCount = Object.values(hiddenGrammar)
         .reduce((acc, rules) => acc + rules.length, 0);
     setupRuleForms(ruleCount);
-
     displayExamples(gameExamples);
 }
 
-/**
- * Generates a hidden grammar and matching example set for the given difficulty.
- *
- * @param {object} difficulty — a difficulty config object from difficulty.js
- * @param {string|null} forcedBaseSeed — if non-null, used instead of generating
- *   a fresh seed. Enables deterministic replay from a shared URL.
- *
- * Returns { hiddenGrammar, gameExamples, baseSeed }.
- * baseSeed is always the 6-character seed that was committed, whether it came
- * from forcedBaseSeed or was freshly generated. Callers use this to write
- * the URL parameter.
- */
 function initializeNewGame(difficulty, forcedBaseSeed = null) {
     clearMessage();
     successfulParses.clear();
@@ -168,15 +186,11 @@ function initializeNewGame(difficulty, forcedBaseSeed = null) {
     for (let i = 0; i < MAX_GRAMMAR_GENERATION_ATTEMPTS; i++) {
         const seed          = baseSeed + i;
         const hiddenGrammar = generateRandomGrammar(
-            difficulty.symbols,
-            difficulty.rules,
-            seed
+            difficulty.symbols, difficulty.rules, seed
         );
         const examplePool = generate(
-            hiddenGrammar,
-            START_SYMBOL,
-            difficulty.stringLength,
-            difficulty.stringLength  // min === max: all examples are the same length
+            hiddenGrammar, START_SYMBOL,
+            difficulty.stringLength, difficulty.stringLength
         );
 
         if (examplePool.length < difficulty.exampleCount) continue;
@@ -184,13 +198,9 @@ function initializeNewGame(difficulty, forcedBaseSeed = null) {
         for (let selectionAttempt = 0; selectionAttempt < 5; selectionAttempt++) {
             const selectionSeed = seed + '_sel' + selectionAttempt;
             const gameExamples  = selectVariedExamples(
-                examplePool,
-                hiddenGrammar,
-                difficulty.exampleCount,
-                selectionSeed
+                examplePool, hiddenGrammar, difficulty.exampleCount, selectionSeed
             );
 
-            // Record the first viable (even if non-diverse) result as a fallback.
             if (!bestFallback && gameExamples.length >= difficulty.exampleCount) {
                 bestFallback = { hiddenGrammar, gameExamples };
             }
@@ -202,7 +212,6 @@ function initializeNewGame(difficulty, forcedBaseSeed = null) {
         }
     }
 
-    // Exhausted all attempts — use best viable candidate found above.
     if (bestFallback) {
         console.warn(
             `CODEX: No diverse set found after ${MAX_GRAMMAR_GENERATION_ATTEMPTS} attempts.`,
@@ -212,7 +221,6 @@ function initializeNewGame(difficulty, forcedBaseSeed = null) {
         return { ...bestFallback, baseSeed };
     }
 
-    // Absolute last resort — unreachable under any sane configuration.
     console.error('CODEX: Grammar generation failed entirely. Check difficulty.js config.');
     const emergencyGrammar  = generateRandomGrammar(SYMBOL_COUNT, difficulty.rules, baseSeed);
     const emergencyPool     = generate(emergencyGrammar, START_SYMBOL, difficulty.stringLength, difficulty.stringLength);

@@ -24,12 +24,10 @@
 }
 
 .brand-group h1 {
-    /* Inherited from base.css; keep margin tight */
     margin: 0;
     line-height: 1;
 }
 
-/* Seed + difficulty displayed under the CODEX logo */
 .brand-meta {
     display: flex;
     align-items: center;
@@ -41,9 +39,7 @@
     letter-spacing: 0.5px;
 }
 
-.brand-meta-sep {
-    opacity: 0.4;
-}
+.brand-meta-sep { opacity: 0.4; }
 
 /* ── Progress (centre) ───────────────────────────────────────────────────── */
 
@@ -84,7 +80,7 @@
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .github-link {
@@ -105,8 +101,39 @@
     border-bottom-color: var(--accent);
 }
 
-/* Single authoritative definition for the menu button.
-   The duplicate that previously lived in overlay.css has been removed. */
+/*
+ * Hint button — intentionally more subdued than the menu button.
+ * The player should feel they are reaching for it, not stumbling on it.
+ * Uses --text-dim border so it recedes visually next to the accent-bordered
+ * MENU button. Disabled state reduces opacity further and changes cursor.
+ */
+#hint-button {
+    background: transparent;
+    border: 1px solid var(--text-dim);
+    color: var(--text-dim);
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+#hint-button:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+#hint-button:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+}
+
+/*
+ * Menu button — single authoritative definition.
+ * The duplicate that previously lived in overlay.css has been removed.
+ */
 #menu-button {
     background: transparent;
     border: 1px solid var(--accent);
@@ -143,4 +170,5 @@
 @media (max-width: 600px) {
     .app-header { padding: 0.6rem 1rem; }
     .progress-track { width: 70px; }
+    #hint-button { display: none; } /* Too cramped on very small screens */
 }

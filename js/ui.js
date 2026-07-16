@@ -12,8 +12,10 @@ export function initUI() {
     ui.examplesList          = document.getElementById('examples-list');
     ui.rulesContainer        = document.getElementById('rules-list');
     ui.menuButton            = document.getElementById('menu-button');
+    ui.hintButton            = document.getElementById('hint-button');
     ui.workspaceOverlay      = document.getElementById('workspace-overlay');
     ui.overlayTitle          = document.getElementById('overlay-title');
+    ui.overlaySubtitle       = document.getElementById('overlay-subtitle');
     ui.overlayNewGameButton  = document.getElementById('overlay-new-game-button');
     ui.overlayResumeButton   = document.getElementById('overlay-resume-button');
     ui.overlayShareButton    = document.getElementById('overlay-share-button');
@@ -40,14 +42,22 @@ export function displayDifficulty(label) {
 }
 
 // ---------------------------------------------------------------------------
-// Difficulty selector buttons
+// Hint button
 // ---------------------------------------------------------------------------
 
 /**
- * Syncs the active visual state of the difficulty buttons in the overlay
- * to the given key. Called at startup (reflecting the committed difficulty,
- * which may have come from a URL param) and on each user selection.
+ * Enables or disables the hint button.
+ * Called by game.js to prevent double-application and to hide it on win.
  */
+export function setHintButtonEnabled(enabled) {
+    if (!ui.hintButton) return;
+    ui.hintButton.disabled = !enabled;
+}
+
+// ---------------------------------------------------------------------------
+// Difficulty selector buttons
+// ---------------------------------------------------------------------------
+
 export function updateDifficultyButtons(activeKey) {
     document.querySelectorAll('.btn-difficulty').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.difficulty === activeKey);
@@ -61,13 +71,34 @@ export function updateDifficultyButtons(activeKey) {
 /**
  * Shows the workspace overlay.
  *
- * type: 'menu' | 'win'
- *   'win'  — hides the resume button (game complete, nothing to resume).
- *            Share button is fully visible as the primary call-to-action.
- *   'menu' — shows both resume and share buttons.
+ * @param {string} title     — text for the h2
+ * @param {string} type      — 'menu' | 'win'
+ * @param {number} hintCount — number of hints used (only shown when > 0)
+ *
+ * Subtitle behaviour:
+ *   type 'win', hintCount  0  → subtitle hidden  (clean solve — silence is the reward)
+ *   type 'win', hintCount  1  → "SOLVED WITH 1 HINT"
+ *   type 'win', hintCount  N  → "SOLVED WITH N HINTS"
+ *   type 'menu'               → subtitle always hidden
+ *
+ * Resume button:
+ *   'win'  → hidden (game is complete, nothing to resume)
+ *   'menu' → visible
  */
-export function showOverlay(title = '', type = 'menu') {
+export function showOverlay(title = '', type = 'menu', hintCount = 0) {
     ui.overlayTitle.textContent = title;
+
+    // Subtitle — only for won games that used hints
+    if (ui.overlaySubtitle) {
+        const isWinWithHints = type === 'win' && hintCount > 0;
+        if (isWinWithHints) {
+            const word = hintCount === 1 ? 'HINT' : 'HINTS';
+            ui.overlaySubtitle.textContent = `SOLVED WITH ${hintCount} ${word}`;
+            ui.overlaySubtitle.style.display = '';
+        } else {
+            ui.overlaySubtitle.style.display = 'none';
+        }
+    }
 
     if (ui.overlayResumeButton) {
         ui.overlayResumeButton.style.display = type === 'win' ? 'none' : '';
