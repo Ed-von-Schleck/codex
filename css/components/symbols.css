@@ -6,6 +6,13 @@
  * override those custom properties.
  */
 .symbol {
+    /* The resting shadow, named so the pulse keyframe can layer a glow in
+       front of it without restating the whole stack. */
+    --symbol-shadow:
+        0 4px 0px rgba(0,0,0,0.3),
+        0 8px 15px rgba(0,0,0,0.5),
+        inset 0 2px 2px rgba(255,255,255,0.1);
+
     width: var(--symbol-size);
     height: var(--symbol-size);
     display: flex;
@@ -21,14 +28,18 @@
         linear-gradient(rgba(255,255,255,0.15) 0%, transparent 5%, transparent 95%, rgba(0,0,0,0.3) 100%),
         linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.2) 100%);
 
-    box-shadow:
-        0 4px 0px rgba(0,0,0,0.3),
-        0 8px 15px rgba(0,0,0,0.5),
-        inset 0 2px 2px rgba(255,255,255,0.1);
+    box-shadow: var(--symbol-shadow);
 
     border: 1px solid rgba(0,0,0,0.4);
     position: relative;
-    transition: all 0.15s ease-out;
+    transition: transform 0.15s ease-out, filter 0.15s ease-out, box-shadow 0.15s ease-out;
+
+    /*
+     * Lift is routed through custom properties so hover and .selected compose
+     * instead of competing: a plain `transform` on each would make whichever
+     * selector is more specific silently drop the other's contribution.
+     */
+    transform: translateY(var(--lift-y, 0)) scale(var(--lift-scale, 1));
 }
 
 /* Scanline texture overlay */
@@ -46,8 +57,9 @@
     opacity: 0.4;
 }
 
-.symbol:hover {
-    transform: translateY(-4px);
+/* Lift + brighten — the "pick me up" invitation belongs to the palette. */
+#symbol-palette .symbol:hover {
+    --lift-y: -4px;
     filter: brightness(1.2);
     box-shadow:
         0 6px 0px rgba(0,0,0,0.4),
@@ -55,15 +67,28 @@
         inset 0 2px 2px rgba(255,255,255,0.2);
 }
 
+/* Placed symbols cool on hover: with nothing selected, a tap clears them. */
+body:not(.has-selection):not(.is-dragging)
+    .drop-zone:not([data-locked]) .symbol:hover {
+    filter: brightness(0.8);
+}
+
 .symbol.start-symbol {
     border: 1px solid rgba(255,255,255,0.3);
     box-shadow: 0 0 15px rgba(217, 83, 79, 0.4);
 }
 
-.symbol.selected {
+/* The beckon borrows the selection outline verbatim — that is the point of
+   it, so it shares the rule rather than restating the values. */
+.symbol.selected,
+.symbol.beckon {
     outline: 2px solid var(--accent);
     outline-offset: 4px;
-    transform: translateY(-4px) scale(1.05);
+}
+
+.symbol.selected {
+    --lift-y: -4px;
+    --lift-scale: 1.05;
 }
 
 /* Row of miniature symbols (example list, visualizer steps) */
@@ -72,30 +97,31 @@
     gap: 0.3rem;
 }
 
-/* ── Hint placement glow ─────────────────────────────────────────────────── */
-
-/*
- * Applied by applyHintToDOM() for 1.5 s after placing a hinted symbol.
- * Uses the success colour (green) rather than accent (cyan) to distinguish
- * hint-placed symbols from selected ones.
- */
-@keyframes hint-pulse {
-    0%   { box-shadow: 0 0 0px 0px var(--success-glow),
-                       0 4px 0px rgba(0,0,0,0.3),
-                       0 8px 15px rgba(0,0,0,0.5),
-                       inset 0 2px 2px rgba(255,255,255,0.1); }
-    40%  { box-shadow: 0 0 20px 6px var(--success-glow),
-                       0 4px 0px rgba(0,0,0,0.3),
-                       0 8px 15px rgba(0,0,0,0.5),
-                       inset 0 2px 2px rgba(255,255,255,0.1); }
-    100% { box-shadow: 0 0 0px 0px var(--success-glow),
-                       0 4px 0px rgba(0,0,0,0.3),
-                       0 8px 15px rgba(0,0,0,0.5),
-                       inset 0 2px 2px rgba(255,255,255,0.1); }
+/* Display-only copies must not advertise draggability; they take the cursor
+   of whatever they sit in (a clickable example row, say). */
+.symbol--static {
+    cursor: inherit;
 }
 
+/* ── Success pulse ───────────────────────────────────────────────────────── */
+
+/*
+ * One pulse, two meanings, applied by pulseSuccess() (domSetup.js): a symbol
+ * whose placement just validated an example, and a symbol the hint placed.
+ * Green rather than accent, so it never reads as selection. The hint adds an
+ * outline on top to mark itself as the source; the motion is identical.
+ */
+@keyframes pulse-success {
+    0%, 100% { box-shadow: 0 0 0px 0px var(--success-glow), var(--symbol-shadow); }
+    40%      { box-shadow: 0 0 20px 6px var(--success-glow), var(--symbol-shadow); }
+}
+
+.symbol.pulse-success {
+    animation: pulse-success 1s ease-out forwards;
+}
+
+/* Marker only — the pulse itself comes from .pulse-success alongside it. */
 .symbol.hint-placed {
-    animation: hint-pulse 1.5s ease-out forwards;
     outline: 1px solid var(--success);
     outline-offset: 3px;
 }
@@ -112,7 +138,7 @@
     justify-content: center;
     cursor: pointer;
     box-shadow: inset 0 2px 10px rgba(0,0,0,0.8);
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .drop-zone:empty::after {
@@ -123,8 +149,14 @@
     font-weight: 300;
 }
 
+/* Its symbol is .symbol--static, so it inherits this rather than showing grab. */
+.drop-zone[data-locked] {
+    cursor: default;
+}
+
 body.is-dragging .drop-zone:not([data-locked]),
-body.has-selection .drop-zone:not([data-locked]) {
+body.has-selection .drop-zone:not([data-locked]),
+.drop-zone.beckon:not([data-locked]) {
     border-color: var(--accent);
     background-color: rgba(0, 212, 255, 0.03);
     box-shadow: inset 0 0 15px rgba(0, 212, 255, 0.1);

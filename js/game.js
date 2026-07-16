@@ -2,7 +2,8 @@
 
 import { START_SYMBOL, MAX_GRAMMAR_GENERATION_ATTEMPTS } from './constants.js';
 import { DIFFICULTIES, DEFAULT_DIFFICULTY_KEY } from './difficulty.js';
-import { setupPalette, setupRuleForms, readFormStates, applyHintToDOM } from './domSetup.js';
+import { setupPalette, setupRuleForms, readFormStates, applyHintToDOM,
+         pulseZoneSymbol } from './domSetup.js';
 import { generate, buildGrammar } from './grammar.js';
 import { generateRandomGrammar } from './grammarGenerator.js';
 import { parse, reconstructParseTree } from './parse.js';
@@ -74,23 +75,33 @@ export function startNewGame(seedOverride = null) {
     setGameParamsInURL(baseSeed, difficulty.key);
 
     validateUserGrammar();
+    // The board is untouched again — onboarding affordances re-arm on this.
+    document.dispatchEvent(new CustomEvent('gameStarted'));
 }
 
 // ---------------------------------------------------------------------------
 // Public API — validation
 // ---------------------------------------------------------------------------
 
-export function validateUserGrammar() {
+/**
+ * Re-parses every example against the player's current grammar.
+ * `changedZone` is the drop zone whose edit triggered this, when there was
+ * one — the causal echo lands there rather than only in the sidebar.
+ */
+export function validateUserGrammar(changedZone = null) {
     clearStickyDerivation(); // any open derivation popover is now stale
     const userGrammar = buildGrammar(readFormStates());
 
     let solved = 0;
+    let newlyValid = false;
     gameState.gameExamples.forEach((example, index) => {
         const isParsable = !!parse(userGrammar, example.result, START_SYMBOL);
         if (isParsable) solved++;
-        updateValidationStatus(index, isParsable);
+        if (updateValidationStatus(index, isParsable)) newlyValid = true;
     });
     updateProgress(solved, gameState.gameExamples.length);
+
+    if (newlyValid) pulseZoneSymbol(changedZone);
 
     if (solved > 0 && solved === gameState.gameExamples.length && !gameState.isWon) {
         gameState.isWon = true;

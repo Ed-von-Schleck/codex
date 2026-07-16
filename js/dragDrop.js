@@ -54,23 +54,23 @@ export function setupDragDropEvents() {
         placeSymbol(zone, e.dataTransfer.getData('text/plain'), !!draggedFromZone);
     });
 
-    // Tap-to-place: tap a symbol to select it, tap a zone to place it there.
+    // Tap-to-place: tap a palette symbol to select it, tap a zone to place
+    // it there. Tapping a filled zone with no selection clears it.
     document.addEventListener('click', (e) => {
         const zone = e.target.closest('.drop-zone');
         if (zone?.dataset.locked) return;
 
-        const symbol = e.target.closest('.symbol');
-        if (symbol && (zone || symbol.parentElement.id === 'symbol-palette')) {
-            selectSymbol(symbol.dataset.symbolId);
+        if (!zone) {
+            const paletteSymbol = e.target.closest('#symbol-palette .symbol');
+            if (paletteSymbol) selectSymbol(paletteSymbol.dataset.symbolId);
             return;
         }
-        if (!zone) return;
 
         const selectedId = getSelectedSymbolId();
         if (selectedId) {
             placeSymbol(zone, selectedId, false);
         } else if (zone.children.length > 0) {
-            setZoneContent(zone, null); // tap a filled zone with no selection: clear it
+            setZoneContent(zone, null);
         }
     });
 }

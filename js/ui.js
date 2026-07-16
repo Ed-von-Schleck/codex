@@ -88,9 +88,13 @@ export function displayExamples(examples) {
     updateProgress(0, examples.length);
 }
 
+/** Updates a row's validity and reports whether it just flipped to valid. */
 export function updateValidationStatus(exampleIndex, isParsable) {
-    ui.examplesList.querySelector(`li[data-example-id='${exampleIndex}']`)
-        ?.classList.toggle('is-valid', isParsable);
+    const li = ui.examplesList.querySelector(`li[data-example-id='${exampleIndex}']`);
+    if (!li) return false;
+    const wasValid = li.classList.contains('is-valid');
+    li.classList.toggle('is-valid', isParsable);
+    return isParsable && !wasValid;
 }
 
 export function updateProgress(solved, total) {

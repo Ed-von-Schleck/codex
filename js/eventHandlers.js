@@ -6,6 +6,7 @@ import { startNewGame, validateUserGrammar, getDerivationSteps,
          setDifficulty, getActiveDifficultyKey, getAndApplyHint, isGameWon } from './game.js';
 import { showDerivation, hideDerivation } from './derivationVisualizer.js';
 import { setupDragDropEvents } from './dragDrop.js';
+import { initBeckon } from './beckon.js';
 import { copyShareURL } from './urlManager.js';
 import { DIFFICULTIES } from './difficulty.js';
 
@@ -148,5 +149,8 @@ export function setupEventListeners() {
     setupDifficultyEvents();
     setupDerivationVisualizerEvents();
     setupDragDropEvents();
-    document.addEventListener('grammarChanged', validateUserGrammar);
+    initBeckon();
+    // setZoneContent dispatches on the zone it changed, so the target is the
+    // zone the player just edited.
+    document.addEventListener('grammarChanged', (e) => validateUserGrammar(e.target));
 }
