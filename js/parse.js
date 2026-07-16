@@ -2,8 +2,7 @@
 
 /**
  * Derives the highest symbol ID referenced anywhere in the grammar or the
- * token sequence. This replaces the previous hard-coded import of SYMBOL_COUNT,
- * making the parser a self-contained pure function with no external dependencies.
+ * token sequence, keeping the parser self-contained.
  */
 function deriveMaxSymbol(grammar, tokenIds) {
     let max = 0;

@@ -1,13 +1,14 @@
 // js/game.js
 
-import { START_SYMBOL, SYMBOL_COUNT, MAX_GRAMMAR_GENERATION_ATTEMPTS } from './constants.js';
+import { START_SYMBOL, MAX_GRAMMAR_GENERATION_ATTEMPTS } from './constants.js';
 import { DIFFICULTIES, DEFAULT_DIFFICULTY_KEY } from './difficulty.js';
 import { setupPalette, setupRuleForms, readFormStates, applyHintToDOM } from './domSetup.js';
-import { generate, buildGrammarFromDOM } from './grammar.js';
+import { generate, buildGrammar } from './grammar.js';
 import { generateRandomGrammar } from './grammarGenerator.js';
 import { parse, reconstructParseTree } from './parse.js';
-import { displayExamples, updateValidationStatus, clearMessage, showOverlay,
-         displaySeed, displayDifficulty, setHintButtonEnabled } from './ui.js';
+import { displayExamples, updateValidationStatus, updateProgress, showOverlay,
+         displaySeed, displayDifficulty, setHintButtonEnabled,
+         clearStickyDerivation } from './ui.js';
 import { selectVariedExamples } from './exampleSelector.js';
 import { generateDerivationSteps } from './derivationVisualizer.js';
 import { setGameParamsInURL } from './urlManager.js';
@@ -17,27 +18,33 @@ import { computeHint } from './hints.js';
 // Module state
 // ---------------------------------------------------------------------------
 
-let activeDifficulty = DIFFICULTIES[DEFAULT_DIFFICULTY_KEY];
+// Difficulty selected in the menu; applies from the next game on.
+let activeDifficultyKey = DEFAULT_DIFFICULTY_KEY;
 
-let gameState = {
+let winOverlayTimeout = null;
+
+const gameState = {
+    difficulty:    DIFFICULTIES[DEFAULT_DIFFICULTY_KEY],
     hiddenGrammar: null,
     gameExamples:  [],
     isWon:         false,
     hintCount:     0,
 };
 
-let successfulParses = new Map();
-
 // ---------------------------------------------------------------------------
 // Public API — difficulty
 // ---------------------------------------------------------------------------
 
 export function getActiveDifficultyKey() {
-    return activeDifficulty.key;
+    return activeDifficultyKey;
 }
 
 export function setDifficulty(key) {
-    activeDifficulty = DIFFICULTIES[key] ?? DIFFICULTIES[DEFAULT_DIFFICULTY_KEY];
+    if (DIFFICULTIES[key]) activeDifficultyKey = key;
+}
+
+export function isGameWon() {
+    return gameState.isWon;
 }
 
 // ---------------------------------------------------------------------------
@@ -45,17 +52,26 @@ export function setDifficulty(key) {
 // ---------------------------------------------------------------------------
 
 export function startNewGame(seedOverride = null) {
-    const { hiddenGrammar, gameExamples, baseSeed } =
-        initializeNewGame(activeDifficulty, seedOverride);
+    clearTimeout(winOverlayTimeout);
 
+    const difficulty = DIFFICULTIES[activeDifficultyKey];
+    const baseSeed   = seedOverride ?? generateSeed();
+    const { hiddenGrammar, gameExamples } = findGameSetup(difficulty, baseSeed);
+
+    gameState.difficulty    = difficulty;
     gameState.hiddenGrammar = hiddenGrammar;
     gameState.gameExamples  = gameExamples;
     gameState.isWon         = false;
     gameState.hintCount     = 0;
 
+    setupPalette(difficulty.symbols);
+    setupRuleForms(difficulty.rules);
+    displayExamples(gameExamples);
+
+    displaySeed(baseSeed);
+    displayDifficulty(difficulty.key);
     setHintButtonEnabled(true);
-    setGameParamsInURL(baseSeed, activeDifficulty.key);
-    displayDifficulty(activeDifficulty.label);
+    setGameParamsInURL(baseSeed, difficulty.key);
 
     validateUserGrammar();
 }
@@ -65,27 +81,21 @@ export function startNewGame(seedOverride = null) {
 // ---------------------------------------------------------------------------
 
 export function validateUserGrammar() {
-    const userGrammar = buildGrammarFromDOM();
-    successfulParses.clear();
+    clearStickyDerivation(); // any open derivation popover is now stale
+    const userGrammar = buildGrammar(readFormStates());
 
+    let solved = 0;
     gameState.gameExamples.forEach((example, index) => {
-        const parseTable = parse(userGrammar, example.result, START_SYMBOL);
-        const isParsable  = !!parseTable;
-        if (isParsable) successfulParses.set(index, parseTable);
+        const isParsable = !!parse(userGrammar, example.result, START_SYMBOL);
+        if (isParsable) solved++;
         updateValidationStatus(index, isParsable);
     });
+    updateProgress(solved, gameState.gameExamples.length);
 
-    const allValid =
-        gameState.gameExamples.length > 0 &&
-        successfulParses.size === gameState.gameExamples.length;
-
-    if (allValid && !gameState.isWon) {
+    if (solved > 0 && solved === gameState.gameExamples.length && !gameState.isWon) {
         gameState.isWon = true;
         setHintButtonEnabled(false);
-        // hintCount is captured now; the closure reads the live value at fire
-        // time, which is correct because hintCount is incremented synchronously
-        // before applyHintToDOM triggers validateUserGrammar.
-        setTimeout(
+        winOverlayTimeout = setTimeout(
             () => showOverlay('DECRYPTION COMPLETE', 'win', gameState.hintCount),
             500
         );
@@ -97,13 +107,14 @@ export function validateUserGrammar() {
 // ---------------------------------------------------------------------------
 
 export function getDerivationSteps(exampleId) {
-    const parseTable = successfulParses.get(exampleId);
-    const example    = gameState.gameExamples[exampleId];
-    if (parseTable && example) {
-        const parseTree = reconstructParseTree(parseTable, START_SYMBOL, example.result.length);
-        if (parseTree) return generateDerivationSteps(parseTree);
-    }
-    return null;
+    const example = gameState.gameExamples[exampleId];
+    if (!example) return null;
+
+    const parseTable = parse(buildGrammar(readFormStates()), example.result, START_SYMBOL);
+    if (!parseTable) return null;
+
+    const parseTree = reconstructParseTree(parseTable, START_SYMBOL, example.result.length);
+    return parseTree ? generateDerivationSteps(parseTree) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,36 +122,23 @@ export function getDerivationSteps(exampleId) {
 // ---------------------------------------------------------------------------
 
 /**
- * Computes and applies the next hint.
- *
- * The hint computation NEVER references the hidden grammar directly as a
- * target — it searches for any valid grammar consistent with what the
- * player has already placed. See hints.js for the full algorithm.
- *
- * hintCount is incremented BEFORE the DOM placement so that if placing the
- * hinted symbol wins the game, the win overlay's 500 ms closure sees the
- * correct (already-incremented) count.
+ * Computes and applies the next hint. The hint search never targets the
+ * hidden grammar directly — it looks for any valid grammar consistent with
+ * the player's placed symbols (see hints.js).
  */
 export function getAndApplyHint() {
     if (gameState.isWon) return;
 
-    setHintButtonEnabled(false);
-
-    const formStates = readFormStates();
     const hint = computeHint(
         gameState.hiddenGrammar,
-        formStates,
+        readFormStates(),
         gameState.gameExamples,
-        activeDifficulty.symbols
+        gameState.difficulty.symbols
     );
 
     if (hint) {
-        gameState.hintCount++;      // increment before DOM placement (see above)
+        gameState.hintCount++; // before placement, so a winning hint is counted
         applyHintToDOM(hint);
-    }
-
-    if (!gameState.isWon) {
-        setHintButtonEnabled(true);
     }
 }
 
@@ -148,9 +146,9 @@ export function getAndApplyHint() {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function generateBase64Seed(length = 6) {
+function generateSeed() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    return Array.from({ length }, () =>
+    return Array.from({ length: 6 }, () =>
         chars.charAt(Math.floor(Math.random() * chars.length))
     ).join('');
 }
@@ -163,68 +161,36 @@ function isSetDiverse(examples) {
 }
 
 /**
- * Writes a validated game setup to the DOM.
- * ORDER IS CRITICAL: setupPalette before setupRuleForms.
+ * Searches seeded grammar candidates for one whose example set is diverse
+ * (varied first and last symbols). Falls back to the first workable
+ * candidate, and as a last resort to an unfiltered example pool.
  */
-function applyGameSetup(hiddenGrammar, gameExamples, difficulty) {
-    setupPalette(difficulty.symbols);
-    const ruleCount = Object.values(hiddenGrammar)
-        .reduce((acc, rules) => acc + rules.length, 0);
-    setupRuleForms(ruleCount);
-    displayExamples(gameExamples);
-}
-
-function initializeNewGame(difficulty, forcedBaseSeed = null) {
-    clearMessage();
-    successfulParses.clear();
-
-    const baseSeed = forcedBaseSeed ?? generateBase64Seed(6);
-    displaySeed(baseSeed);
-
-    let bestFallback = null;
+function findGameSetup(difficulty, baseSeed) {
+    let fallback = null;
 
     for (let i = 0; i < MAX_GRAMMAR_GENERATION_ATTEMPTS; i++) {
         const seed          = baseSeed + i;
-        const hiddenGrammar = generateRandomGrammar(
-            difficulty.symbols, difficulty.rules, seed
-        );
-        const examplePool = generate(
-            hiddenGrammar, START_SYMBOL,
-            difficulty.stringLength, difficulty.stringLength
-        );
+        const hiddenGrammar = generateRandomGrammar(difficulty.symbols, difficulty.rules, seed);
+        const examplePool   = generate(hiddenGrammar, START_SYMBOL, difficulty.stringLength);
 
         if (examplePool.length < difficulty.exampleCount) continue;
 
-        for (let selectionAttempt = 0; selectionAttempt < 5; selectionAttempt++) {
-            const selectionSeed = seed + '_sel' + selectionAttempt;
-            const gameExamples  = selectVariedExamples(
-                examplePool, hiddenGrammar, difficulty.exampleCount, selectionSeed
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const gameExamples = selectVariedExamples(
+                examplePool, hiddenGrammar, difficulty.exampleCount, seed + '_sel' + attempt
             );
-
-            if (!bestFallback && gameExamples.length >= difficulty.exampleCount) {
-                bestFallback = { hiddenGrammar, gameExamples };
-            }
-
-            if (isSetDiverse(gameExamples)) {
-                applyGameSetup(hiddenGrammar, gameExamples, difficulty);
-                return { hiddenGrammar, gameExamples, baseSeed };
-            }
+            fallback ??= { hiddenGrammar, gameExamples };
+            if (isSetDiverse(gameExamples)) return { hiddenGrammar, gameExamples };
         }
     }
 
-    if (bestFallback) {
-        console.warn(
-            `CODEX: No diverse set found after ${MAX_GRAMMAR_GENERATION_ATTEMPTS} attempts.`,
-            'Using best available candidate.'
-        );
-        applyGameSetup(bestFallback.hiddenGrammar, bestFallback.gameExamples, difficulty);
-        return { ...bestFallback, baseSeed };
+    if (fallback) {
+        console.warn(`CODEX: No diverse example set found after ${MAX_GRAMMAR_GENERATION_ATTEMPTS} attempts. Using best available candidate.`);
+        return fallback;
     }
 
     console.error('CODEX: Grammar generation failed entirely. Check difficulty.js config.');
-    const emergencyGrammar  = generateRandomGrammar(SYMBOL_COUNT, difficulty.rules, baseSeed);
-    const emergencyPool     = generate(emergencyGrammar, START_SYMBOL, difficulty.stringLength, difficulty.stringLength);
-    const emergencyExamples = emergencyPool.slice(0, difficulty.exampleCount);
-    applyGameSetup(emergencyGrammar, emergencyExamples, difficulty);
-    return { hiddenGrammar: emergencyGrammar, gameExamples: emergencyExamples, baseSeed };
+    const hiddenGrammar = generateRandomGrammar(difficulty.symbols, difficulty.rules, baseSeed);
+    const examplePool   = generate(hiddenGrammar, START_SYMBOL, difficulty.stringLength);
+    return { hiddenGrammar, gameExamples: examplePool.slice(0, difficulty.exampleCount) };
 }

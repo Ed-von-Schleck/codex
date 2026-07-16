@@ -1,7 +1,6 @@
 :root {
     --bg-app: #0d0f12;
     --bg-card: #161a1f;
-    --bg-input: #1f242d;
     --text-main: #e2e8f0;
     --text-dim: #718096;
     --accent: #00d4ff;
@@ -9,10 +8,10 @@
     --success: #00ff9f;
     --success-glow: rgba(0, 255, 159, 0.2);
     --border-color: #2d3748;
-    
+
     --symbol-size: 3.8rem;
+    --symbol-font: 2.2rem;
     --symbol-mini: 2rem;
-    --border-radius: 4px;
 }
 
 * { box-sizing: border-box; }
@@ -27,8 +26,25 @@ body {
     min-height: 100vh;
 }
 
-h1, h2, h3 { 
-    font-family: 'Rajdhani', sans-serif; 
-    text-transform: uppercase; 
-    letter-spacing: 2px; 
+h1, h2, h3 {
+    font-family: 'Rajdhani', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+/*
+ * Shared button base: a "ghost" button whose border and text share one
+ * colour. Variants override --btn-color (and background where filled).
+ */
+button {
+    --btn-color: var(--text-dim);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 0.7rem 1.4rem;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid var(--btn-color);
+    color: var(--btn-color);
 }

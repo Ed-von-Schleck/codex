@@ -102,48 +102,23 @@
 }
 
 /*
- * Hint button — intentionally more subdued than the menu button.
- * The player should feel they are reaching for it, not stumbling on it.
- * Uses --text-dim border so it recedes visually next to the accent-bordered
- * MENU button. Disabled state reduces opacity further and changes cursor.
+ * Header buttons. The hint button is intentionally more subdued than the
+ * menu button — the player should feel they are reaching for it.
  */
-#hint-button {
-    background: transparent;
-    border: 1px solid var(--text-dim);
-    color: var(--text-dim);
+#hint-button, #menu-button {
     padding: 0.4rem 1rem;
     font-size: 0.8rem;
-    cursor: pointer;
-    font-family: 'Rajdhani', sans-serif;
-    font-weight: bold;
     letter-spacing: 1px;
     transition: border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
-#hint-button:hover:not(:disabled) {
-    border-color: var(--accent);
-    color: var(--accent);
-}
+#menu-button { --btn-color: var(--accent); }
+
+#hint-button:hover:not(:disabled) { --btn-color: var(--accent); }
 
 #hint-button:disabled {
     opacity: 0.25;
     cursor: not-allowed;
-}
-
-/*
- * Menu button — single authoritative definition.
- * The duplicate that previously lived in overlay.css has been removed.
- */
-#menu-button {
-    background: transparent;
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    padding: 0.4rem 1rem;
-    font-size: 0.8rem;
-    cursor: pointer;
-    font-family: 'Rajdhani', sans-serif;
-    font-weight: bold;
-    letter-spacing: 1px;
 }
 
 /* ── Game layout ─────────────────────────────────────────────────────────── */
@@ -156,8 +131,6 @@
     margin: 2rem auto;
     padding: 0 1.5rem;
 }
-
-.app-footer { display: none; }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 

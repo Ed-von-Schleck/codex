@@ -14,7 +14,8 @@
 //   C. If no alternative exists, the player is cornered. Suggest replacing
 //      the first conflicting slot with the hidden-grammar permutation's value.
 
-import { START_SYMBOL } from './constants.js';
+import { START_SYMBOL, symbolIds } from './constants.js';
+import { buildGrammar } from './grammar.js';
 import { parse } from './parse.js';
 
 // Maximum nodes explored before the backtracking search gives up.
@@ -31,14 +32,9 @@ const MAX_BACKTRACK_NODES = 10_000;
  * @param {object}   hiddenGrammar  — the hidden grammar object from game.js
  * @param {object[]} formStates     — current slot values from readFormStates()
  * @param {object[]} examples       — target example objects with .result arrays
- * @param {number}   symbolCount    — number of symbols in the active difficulty
+ * @param {number}   symbolCount    — number of symbols in the game's difficulty
  *
- * @returns {{ formIndex:number, slot:string, symbolId:string, isRepair:boolean }|null}
- *   formIndex — which rule form (0-indexed)
- *   slot      — 'lhs' | 'rhs0' | 'rhs1'
- *   symbolId  — the symbol to place (as a string, e.g. '3')
- *   isRepair  — true if the slot already has the wrong symbol and must be cleared
- *
+ * @returns {{ formIndex:number, slot:string, symbolId:string }|null}
  *   Returns null only if everything is already correct (game is won).
  */
 export function computeHint(hiddenGrammar, formStates, examples, symbolCount) {
@@ -69,7 +65,7 @@ export function computeHint(hiddenGrammar, formStates, examples, symbolCount) {
 
     if (bestConflicts === 0) {
         // Player's filled slots are fully consistent with this permutation.
-        return findNextSlot(formStates, bestPerm, false);
+        return findNextSlot(formStates, bestPerm);
     }
 
     // ── Phase B: Alternative valid-completion search ──────────────────────
@@ -77,7 +73,7 @@ export function computeHint(hiddenGrammar, formStates, examples, symbolCount) {
     // completion of the empty slots that parses all examples.
     const altCompletion = findAlternativeCompletion(formStates, examples, symbolCount);
     if (altCompletion) {
-        return findNextSlot(formStates, altCompletion, false);
+        return findNextSlot(formStates, altCompletion);
     }
 
     // ── Phase C: Repair ───────────────────────────────────────────────────
@@ -106,25 +102,13 @@ function flattenGrammar(grammar) {
     return rules;
 }
 
-/**
- * Builds a grammar object from an array of rule-form state objects.
- * Only includes rows where all three slots are filled.
- */
-function buildGrammarFromFormStates(formStates) {
-    const grammar = {};
-    for (const { lhs, rhs0, rhs1 } of formStates) {
-        if (lhs && rhs0 && rhs1) {
-            grammar[lhs] ??= [];
-            grammar[lhs].push([rhs0, rhs1]);
-        }
-    }
-    return grammar;
-}
-
 /** Returns true if the grammar parses every example string. */
 function parsesAll(grammar, examples) {
     return examples.every(ex => parse(grammar, ex.result, START_SYMBOL) !== null);
 }
+
+const statesToRules = states =>
+    states.map(({ lhs, rhs0, rhs1 }) => ({ lhs, rhs0, rhs1 }));
 
 // ---------------------------------------------------------------------------
 // Permutation utilities
@@ -146,17 +130,12 @@ function generatePermutations(arr) {
 /**
  * Counts how many of the player's filled slots conflict with a given
  * permutation of hidden rules.
- *
- * Form 0's LHS is always START_SYMBOL (locked) and is always included in
- * the check — so permutations where perm[0].lhs !== START_SYMBOL get a
- * guaranteed conflict even if the player has no other fills.
  */
 function scorePermutation(perm, formStates) {
     let conflicts = 0;
     for (let i = 0; i < formStates.length; i++) {
         const form = formStates[i];
         const rule = perm[i];
-        // For form 0 lhs: always filled (START_SYMBOL) — check it
         if (form.lhs  !== null && form.lhs  !== rule.lhs)  conflicts++;
         if (form.rhs0 !== null && form.rhs0 !== rule.rhs0) conflicts++;
         if (form.rhs1 !== null && form.rhs1 !== rule.rhs1) conflicts++;
@@ -192,18 +171,16 @@ function isPartiallyFilled(form, formIndex) {
  *      Gives the player immediate visual feedback when a rule completes.
  *   2. Start a fresh empty row.
  *
- * Within each priority tier, rows are processed in form order (0, 1, 2, …).
- * Within a row: lhs → rhs0 → rhs1 (skipping the locked lhs for form 0).
- *
- * @param {boolean} isRepair — passed through to the returned hint object.
+ * Within each priority tier, rows are processed in form order, and within
+ * a row: lhs → rhs0 → rhs1 (skipping the locked lhs for form 0).
  */
-function findNextSlot(formStates, targetRules, isRepair) {
+function findNextSlot(formStates, targetRules) {
     // Priority 1: partially filled rows
     for (let i = 0; i < formStates.length; i++) {
         if (!isPartiallyFilled(formStates[i], i)) continue;
         for (const slot of slotOrder(i)) {
             if (formStates[i][slot] === null) {
-                return { formIndex: i, slot, symbolId: targetRules[i][slot], isRepair };
+                return { formIndex: i, slot, symbolId: targetRules[i][slot] };
             }
         }
     }
@@ -212,18 +189,15 @@ function findNextSlot(formStates, targetRules, isRepair) {
     for (let i = 0; i < formStates.length; i++) {
         const slots = slotOrder(i);
         if (slots.some(s => formStates[i][s] !== null)) continue; // not fully empty
-        return { formIndex: i, slot: slots[0], symbolId: targetRules[i][slots[0]], isRepair };
+        return { formIndex: i, slot: slots[0], symbolId: targetRules[i][slots[0]] };
     }
 
     return null; // all slots filled — game should be won already
 }
 
 /**
- * Finds the first slot that is either wrong (filled but conflicting with
- * targetRules) or empty. Used in the repair phase.
- *
- * Empty slots are returned with isRepair: false (they just need filling).
- * Conflicting slots are returned with isRepair: true (they need replacing).
+ * Finds the first slot that is either empty or wrong (filled but conflicting
+ * with targetRules). Used in the repair phase.
  */
 function findRepairSlot(formStates, targetRules) {
     for (let i = 0; i < formStates.length; i++) {
@@ -231,8 +205,7 @@ function findRepairSlot(formStates, targetRules) {
             const current = formStates[i][slot];
             const target  = targetRules[i]?.[slot];
             if (target === undefined) continue; // safety guard
-            if (current === null)    return { formIndex: i, slot, symbolId: target, isRepair: false };
-            if (current !== target)  return { formIndex: i, slot, symbolId: target, isRepair: true  };
+            if (current !== target) return { formIndex: i, slot, symbolId: target };
         }
     }
     return null; // nothing wrong — game is won
@@ -271,21 +244,14 @@ function collectEmptySlots(formStates) {
  */
 function findAlternativeCompletion(formStates, examples, symbolCount) {
     const emptySlots = collectEmptySlots(formStates);
-    if (emptySlots.length === 0) {
-        // All slots filled — check if the grammar already parses everything
-        const g = buildGrammarFromFormStates(formStates);
-        return parsesAll(g, examples)
-            ? formStates.map(f => ({ lhs: f.lhs, rhs0: f.rhs0, rhs1: f.rhs1 }))
-            : null;
-    }
+    if (emptySlots.length === 0) return null; // full grid: nothing to complete
 
     // Deep-copy formStates so backtracking can mutate freely
     const workStates = formStates.map(f => ({ ...f }));
     const counter    = { n: 0 };
-    const symbols    = Array.from({ length: symbolCount }, (_, i) => String(i + 1));
+    const symbols    = symbolIds(symbolCount);
 
-    const result = backtrack(workStates, emptySlots, 0, examples, symbols, counter);
-    return result;
+    return backtrack(workStates, emptySlots, 0, examples, symbols, counter);
 }
 
 /**
@@ -296,10 +262,8 @@ function backtrack(workStates, emptySlots, idx, examples, symbols, counter) {
     if (++counter.n > MAX_BACKTRACK_NODES) return null;
 
     if (idx === emptySlots.length) {
-        const grammar = buildGrammarFromFormStates(workStates);
-        return parsesAll(grammar, examples)
-            ? workStates.map(f => ({ lhs: f.lhs, rhs0: f.rhs0, rhs1: f.rhs1 }))
-            : null;
+        const grammar = buildGrammar(workStates);
+        return parsesAll(grammar, examples) ? statesToRules(workStates) : null;
     }
 
     const { formIndex, slot } = emptySlots[idx];

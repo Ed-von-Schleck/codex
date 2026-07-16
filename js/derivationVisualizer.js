@@ -1,12 +1,6 @@
 // js/derivationVisualizer.js
 
-const ANIMATION_DURATION = 200;
-
-function cloneSymbolForDisplay(sourceSymbol) {
-    const clone = sourceSymbol.cloneNode(true);
-    clone.classList.remove('selected'); 
-    return clone;
-}
+import { cloneSymbol } from './domSetup.js';
 
 export function renderGeneratedString(symbolArray, highlightIndex = -1) {
     const container = document.createElement('div');
@@ -14,10 +8,9 @@ export function renderGeneratedString(symbolArray, highlightIndex = -1) {
 
     symbolArray.forEach((symbolOrNode, index) => {
         const symbolId = typeof symbolOrNode === 'object' ? symbolOrNode.symbolId : symbolOrNode;
-        const sourceSymbol = document.getElementById(symbolId);
-        if (!sourceSymbol) return;
-        
-        const clone = cloneSymbolForDisplay(sourceSymbol);
+        const clone = cloneSymbol(symbolId, false);
+        if (!clone) return;
+
         if (index === highlightIndex) {
             clone.classList.add('replaced-symbol');
         }
@@ -64,8 +57,7 @@ export function generateDerivationSteps(parseTree) {
 }
 
 export function hideDerivation() {
-    const visualizer = document.querySelector('.derivation-visualizer');
-    if (visualizer) visualizer.remove();
+    document.querySelector('.derivation-visualizer')?.remove();
 }
 
 export function showDerivation(listItem, steps) {
@@ -73,8 +65,7 @@ export function showDerivation(listItem, steps) {
 
     const visualizer = document.createElement('div');
     visualizer.className = 'derivation-visualizer';
-    
-    // Add a header for the "Data Log" look
+
     const header = document.createElement('div');
     header.className = 'visualizer-header';
     header.textContent = 'DERIVATION LOG // RECONSTRUCTION';
@@ -87,44 +78,35 @@ export function showDerivation(listItem, steps) {
 
         const highlightIndex = nextStep ? nextStep.replacedSymbolIndex : -1;
         const sequenceDiv = renderGeneratedString(currentStep.sequence, highlightIndex);
-        
+
         const ruleDiv = document.createElement('div');
         ruleDiv.className = 'step-rule';
 
         if (nextStep?.rule?.lhs) {
             const { rule } = nextStep;
-            ruleDiv.appendChild(cloneSymbolForDisplay(document.getElementById(rule.lhs)));
+            ruleDiv.appendChild(cloneSymbol(rule.lhs, false));
             ruleDiv.insertAdjacentHTML('beforeend', '<span class="rule-arrow-mini">→</span>');
-            rule.rhs.forEach(id => ruleDiv.appendChild(cloneSymbolForDisplay(document.getElementById(id))));
+            rule.rhs.forEach(id => ruleDiv.appendChild(cloneSymbol(id, false)));
         } else {
             ruleDiv.style.visibility = 'hidden';
         }
-        
+
         stepDiv.append(sequenceDiv, ruleDiv);
         visualizer.appendChild(stepDiv);
     });
 
-    // We must append it to the body hidden first to measure its final size
+    // Append hidden first to measure the final size before positioning.
     visualizer.style.visibility = 'hidden';
-    visualizer.style.display = 'block';
     document.body.appendChild(visualizer);
 
     const rect = listItem.getBoundingClientRect();
     const visRect = visualizer.getBoundingClientRect();
-    
-    // Calculate vertical center
-    let top = rect.top + (rect.height / 2) - (visRect.height / 2);
-    
-    // Position to the LEFT of the sidebar (standard)
-    let left = rect.left - visRect.width - 30; 
-
-    // FLIP logic: If it goes off-screen left, put it on the right
-    if (left < 20) {
-        left = rect.right + 30;
-    }
-
-    // FINAL CLAMP: Keep it inside the viewport padding
     const padding = 20;
+
+    let top = rect.top + (rect.height / 2) - (visRect.height / 2);
+    let left = rect.left - visRect.width - 30; // left of the sidebar
+    if (left < padding) left = rect.right + 30; // flip to the right if off-screen
+
     top = Math.max(padding, Math.min(top, window.innerHeight - visRect.height - padding));
     left = Math.max(padding, Math.min(left, window.innerWidth - visRect.width - padding));
 

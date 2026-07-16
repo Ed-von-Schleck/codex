@@ -1,96 +1,94 @@
 // js/dragDrop.js
+//
+// All symbol interaction — drag-and-drop and tap-to-place — via listeners
+// delegated to the document. Symbols and drop zones need no wiring of their
+// own, so clones behave identically to originals by construction.
 
+import { cloneSymbol, setZoneContent } from './domSetup.js';
 import { selectSymbol, getSelectedSymbolId, clearSelection } from './ui.js';
 
 let draggedFromZone = null;
 
-export function handleDragStart(e) {
-    e.dataTransfer.setData('text/plain', e.target.id);
-    draggedFromZone = e.target.parentElement.classList.contains('drop-zone') ? e.target.parentElement : null;
-    document.body.classList.add('is-dragging');
+function dropTarget(e) {
+    const zone = e.target.closest('.drop-zone');
+    return zone && !zone.dataset.locked ? zone : null;
 }
 
-export function handleDragEnd(e) {
-    document.body.classList.remove('is-dragging');
-    if (draggedFromZone && e.dataTransfer.dropEffect === 'none') {
-        draggedFromZone.innerHTML = '';
-        draggedFromZone.dispatchEvent(new CustomEvent('grammarChanged', { bubbles: true }));
-    }
-    draggedFromZone = null;
-}
-
-export function handleDragOver(e) {
-    e.preventDefault();
-    const targetZone = e.target.closest('.drop-zone');
-    if (targetZone && !targetZone.dataset.locked) {
-        e.dataTransfer.dropEffect = 'move';
-        targetZone.classList.add('drag-over');
-    }
-}
-
-export function handleDragLeave(e) {
-    const targetZone = e.target.closest('.drop-zone');
-    if (targetZone) targetZone.classList.remove('drag-over');
-}
-
-export function handleDrop(e) {
-    e.preventDefault();
-    const targetZone = e.target.closest('.drop-zone');
-    if (!targetZone || targetZone.dataset.locked) return;
-
-    targetZone.classList.remove('drag-over');
-    const droppedSymbolId = e.dataTransfer.getData('text/plain');
-    performPlacement(targetZone, droppedSymbolId, !!draggedFromZone);
-}
-
-/**
- * Handle Tap-to-Place logic
- */
-export function handleZoneClick(e) {
-    const targetZone = e.currentTarget;
-    if (targetZone.dataset.locked) return;
-
-    const selectedId = getSelectedSymbolId();
-    if (selectedId) {
-        performPlacement(targetZone, selectedId, false);
-    } else if (targetZone.children.length > 0) {
-        // If clicking a filled zone without a selection, clear it
-        targetZone.innerHTML = '';
-        targetZone.dispatchEvent(new CustomEvent('grammarChanged', { bubbles: true }));
-    }
-}
-
-/**
- * Shared placement logic for both Drag-and-Drop and Tap-to-Place
- */
-function performPlacement(targetZone, symbolId, isMove) {
-    const sourceSymbol = document.getElementById(symbolId);
-    if (!sourceSymbol) return;
-
-    const newElement = isMove && draggedFromZone 
-        ? draggedFromZone.children[0] 
-        : sourceSymbol.cloneNode(true);
-
-    // Re-attach listeners for clones
-    newElement.draggable = true;
-    newElement.addEventListener('dragstart', handleDragStart);
-    newElement.addEventListener('dragend', handleDragEnd);
-    
-    // Tap listener for the new clone (to allow re-selecting it)
-    newElement.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectSymbol(symbolId);
+export function setupDragDropEvents() {
+    document.addEventListener('dragstart', (e) => {
+        const symbol = e.target.closest('.symbol');
+        if (!symbol) return;
+        e.dataTransfer.setData('text/plain', symbol.dataset.symbolId);
+        draggedFromZone = symbol.parentElement.classList.contains('drop-zone')
+            ? symbol.parentElement
+            : null;
+        document.body.classList.add('is-dragging');
     });
 
-    const existingElement = targetZone.children?.[0];
+    document.addEventListener('dragend', (e) => {
+        document.body.classList.remove('is-dragging');
+        // Dropped outside any zone: dragging a placed symbol away removes it.
+        if (draggedFromZone && e.dataTransfer.dropEffect === 'none') {
+            setZoneContent(draggedFromZone, null);
+        }
+        draggedFromZone = null;
+    });
 
+    document.addEventListener('dragover', (e) => {
+        const zone = dropTarget(e);
+        if (!zone) return; // no preventDefault → not a drop target
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        zone.classList.add('drag-over');
+    });
+
+    document.addEventListener('dragleave', (e) => {
+        e.target.closest('.drop-zone')?.classList.remove('drag-over');
+    });
+
+    document.addEventListener('drop', (e) => {
+        const zone = dropTarget(e);
+        if (!zone) return;
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        placeSymbol(zone, e.dataTransfer.getData('text/plain'), !!draggedFromZone);
+    });
+
+    // Tap-to-place: tap a symbol to select it, tap a zone to place it there.
+    document.addEventListener('click', (e) => {
+        const zone = e.target.closest('.drop-zone');
+        if (zone?.dataset.locked) return;
+
+        const symbol = e.target.closest('.symbol');
+        if (symbol && (zone || symbol.parentElement.id === 'symbol-palette')) {
+            selectSymbol(symbol.dataset.symbolId);
+            return;
+        }
+        if (!zone) return;
+
+        const selectedId = getSelectedSymbolId();
+        if (selectedId) {
+            placeSymbol(zone, selectedId, false);
+        } else if (zone.children.length > 0) {
+            setZoneContent(zone, null); // tap a filled zone with no selection: clear it
+        }
+    });
+}
+
+/** Shared placement for drag-and-drop and tap-to-place. */
+function placeSymbol(targetZone, symbolId, isMove) {
+    const newElement = isMove && draggedFromZone
+        ? draggedFromZone.children[0]
+        : cloneSymbol(symbolId);
+    if (!newElement) return;
+
+    // Moving onto an occupied zone swaps: the displaced symbol goes back
+    // to the source zone (appendChild below detaches it from the target).
     if (isMove && draggedFromZone && draggedFromZone !== targetZone) {
-        if (existingElement) draggedFromZone.appendChild(existingElement);
-        else draggedFromZone.innerHTML = '';
+        const displaced = targetZone.children[0];
+        if (displaced) draggedFromZone.appendChild(displaced);
     }
-    
-    targetZone.innerHTML = '';
-    targetZone.appendChild(newElement);
-    targetZone.dispatchEvent(new CustomEvent('grammarChanged', { bubbles: true }));
+
+    setZoneContent(targetZone, newElement);
     clearSelection();
 }

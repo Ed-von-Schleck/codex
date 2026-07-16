@@ -1,6 +1,8 @@
 /* css/components/visualizer.css */
 
 .derivation-visualizer {
+    --symbol-size: 1.8rem;
+    --symbol-font: 0.9rem;
     position: fixed;
     z-index: 2000;
     background: rgba(10, 12, 16, 0.95);
@@ -42,11 +44,6 @@
     border-left: 2px solid var(--success);
 }
 
-.derivation-visualizer .example-content-wrapper {
-    display: flex;
-    gap: 0.3rem;
-}
-
 .derivation-visualizer .step-rule {
     display: flex;
     align-items: center;
@@ -61,13 +58,9 @@
     margin: 0 0.1rem;
 }
 
-/* Symbol overrides for visualizer display */
 .derivation-visualizer .symbol {
-    width: 1.8rem !important;
-    height: 1.8rem !important;
-    font-size: 0.9rem !important;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.4) !important;
-    border: 1px solid rgba(0,0,0,0.2) !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    border: 1px solid rgba(0,0,0,0.2);
 }
 
 .derivation-visualizer .symbol::before {

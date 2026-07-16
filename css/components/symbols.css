@@ -1,12 +1,19 @@
 /* css/components/symbols.css */
 
+/*
+ * Symbols size themselves from --symbol-size / --symbol-font, so contexts
+ * that show miniature symbols (example list, derivation visualizer) just
+ * override those custom properties.
+ */
 .symbol {
     width: var(--symbol-size);
     height: var(--symbol-size);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.2rem;
+    font-size: var(--symbol-font);
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
     cursor: grab;
     user-select: none;
 
@@ -39,11 +46,6 @@
     opacity: 0.4;
 }
 
-.symbol {
-    color: rgba(255, 255, 255, 0.9);
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-}
-
 .symbol:hover {
     transform: translateY(-4px);
     filter: brightness(1.2);
@@ -64,12 +66,16 @@
     transform: translateY(-4px) scale(1.05);
 }
 
+/* Row of miniature symbols (example list, visualizer steps) */
+.example-content-wrapper {
+    display: flex;
+    gap: 0.3rem;
+}
+
 /* ── Hint placement glow ─────────────────────────────────────────────────── */
 
 /*
- * Applied by applyHintToDOM() immediately after placing a hinted symbol.
- * Removed after 1500 ms. Produces a pulsing accent glow so the player
- * can clearly see which symbol was just placed by the hint system.
+ * Applied by applyHintToDOM() for 1.5 s after placing a hinted symbol.
  * Uses the success colour (green) rather than accent (cyan) to distinguish
  * hint-placed symbols from selected ones.
  */

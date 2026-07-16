@@ -14,13 +14,7 @@
     max-width: 480px; width: 90%;
 }
 
-/* ── Overlay subtitle (hint taint indicator) ─────────────────────────────── */
-
-/*
- * Shown below the title on the win screen only when hintCount > 0.
- * Uses a muted amber tone — neither celebratory nor punitive,
- * just informational. Hidden by default (and on clean solves).
- */
+/* Hint taint indicator below the win title — informational amber, not punitive */
 .overlay-subtitle {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.7rem;
@@ -56,16 +50,10 @@
 }
 
 .btn-difficulty {
-    font-family: 'Rajdhani', sans-serif;
-    font-weight: bold;
-    letter-spacing: 1px;
-    text-transform: uppercase;
     font-size: 0.7rem;
+    letter-spacing: 1px;
     padding: 0.5rem 0.2rem;
-    cursor: pointer;
-    border: 1px solid var(--border-color);
-    background: transparent;
-    color: var(--text-dim);
+    border-color: var(--border-color);
     transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
@@ -89,30 +77,14 @@
     margin-top: 1.5rem;
 }
 
-button {
-    font-family: 'Rajdhani', sans-serif;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    font-weight: bold;
-    padding: 0.7rem 1.4rem;
-    cursor: pointer;
-    border: none;
-}
-
-/* #menu-button and #hint-button styles live in layout.css */
-
-.btn-primary  { background: var(--accent); color: #000; }
-
-.btn-secondary {
-    background: transparent;
-    border: 1px solid var(--text-dim);
-    color: var(--text-dim);
+.btn-primary {
+    --btn-color: var(--accent);
+    background: var(--accent);
+    color: #000;
 }
 
 .btn-share {
-    background: transparent;
-    border: 1px solid var(--accent);
-    color: var(--accent);
+    --btn-color: var(--accent);
     transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -121,7 +93,6 @@ button {
 }
 
 .btn-share--copied {
-    border-color: var(--success);
-    color: var(--success);
+    --btn-color: var(--success);
     background: rgba(0, 255, 159, 0.06);
 }

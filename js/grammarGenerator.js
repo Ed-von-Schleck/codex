@@ -1,6 +1,8 @@
 // js/grammarGenerator.js
 
-const getRandomElement = (arr, random) => {
+import { symbolIds } from './constants.js';
+
+export const getRandomElement = (arr, random) => {
     if (arr.length === 0) return null;
     return arr[Math.floor(random() * arr.length)];
 };
@@ -9,7 +11,7 @@ export function generateRandomGrammar(numSymbols, numRules, seed) {
     const random = new Math.seedrandom(seed);
     if (numSymbols === 0 || numRules === 0) return {};
 
-    const allSymbols = Array.from({ length: numSymbols }, (_, i) => String(i + 1));
+    const allSymbols = symbolIds(numSymbols);
     const startSymbol = allSymbols[0];
     const rules = [];
     const expanded = new Set();
@@ -20,7 +22,7 @@ export function generateRandomGrammar(numSymbols, numRules, seed) {
 
     while (rules.length < numRules) {
         let lhs;
-        
+
         if (startRuleCount < targetStartRules) {
             lhs = startSymbol;
             startRuleCount++;
@@ -48,8 +50,7 @@ export function generateRandomGrammar(numSymbols, numRules, seed) {
 
     const grammar = {};
     for (const { lhs, rhs } of rules) {
-        grammar[lhs] ??= [];
-        grammar[lhs].push(rhs);
+        (grammar[lhs] ??= []).push(rhs);
     }
 
     return grammar;

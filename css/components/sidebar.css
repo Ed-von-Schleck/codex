@@ -10,23 +10,25 @@
 .sidebar h2 { margin: 0; font-size: 1.1rem; color: var(--accent); }
 .instruction { color: var(--text-dim); font-size: 0.7rem; margin-top: 0.4rem; opacity: 0.7; }
 
-.examples-list { 
-    list-style: none; 
-    padding: 0; 
-    margin: 0; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 0.5rem; 
-    counter-reset: example-counter; /* Initialize counter */
+.examples-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    counter-reset: example-counter;
 }
 
 .examples-list li {
+    --symbol-size: var(--symbol-mini);
+    --symbol-font: 1rem;
     padding: 0.6rem 0.8rem;
     background: rgba(0, 0, 0, 0.4);
     border: 1px solid #222;
-    display: flex; 
-    align-items: center; 
-    justify-content: flex-start; /* Aligned left */
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
@@ -49,9 +51,9 @@
     border-color: #444;
 }
 
-.examples-list li.is-valid { 
-    border-color: var(--success); 
-    background: rgba(0, 255, 159, 0.05); 
+.examples-list li.is-valid {
+    border-color: var(--success);
+    background: rgba(0, 255, 159, 0.05);
 }
 
 .examples-list li.is-valid::before {
@@ -59,14 +61,6 @@
     opacity: 1;
 }
 
-.example-content-wrapper {
-    display: flex !important;
-    gap: 0.3rem; /* Slightly tighter gap for strings */
-}
-
-.examples-list .symbol { 
-    width: var(--symbol-mini) !important; 
-    height: var(--symbol-mini) !important; 
-    font-size: 1rem !important; 
+.examples-list .symbol {
     box-shadow: 0 2px 4px rgba(0,0,0,0.5); /* Smaller shadow for list items */
 }

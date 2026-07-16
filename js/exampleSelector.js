@@ -1,23 +1,22 @@
 // js/exampleSelector.js
 
+import { ruleKey } from './grammar.js';
+import { getRandomElement } from './grammarGenerator.js';
+
+/**
+ * Picks `targetCount` examples from the pool, preferring a set that covers
+ * every grammar rule, then topping up with random distinct examples.
+ */
 export function selectVariedExamples(examplePool, grammar, targetCount, seed) {
     const random = new Math.seedrandom(seed);
-
-    const getRandomElement = (arr) => {
-        if (arr.length === 0) return undefined;
-        return arr[Math.floor(random() * arr.length)];
-    };
 
     const finalExamples = [];
     const finalExampleKeys = new Set();
 
     const ruleToExamplesMap = new Map();
-    const allRules = new Set();
-    for (const lhsId in grammar) {
-        for (const rhs of grammar[lhsId]) {
-            const ruleKey = `${lhsId}->${rhs.join(',')}`;
-            allRules.add(ruleKey);
-            ruleToExamplesMap.set(ruleKey, []);
+    for (const lhs in grammar) {
+        for (const rhs of grammar[lhs]) {
+            ruleToExamplesMap.set(ruleKey(lhs, rhs), []);
         }
     }
     for (const example of examplePool) {
@@ -26,16 +25,16 @@ export function selectVariedExamples(examplePool, grammar, targetCount, seed) {
         }
     }
 
-    const uncoveredRules = new Set(allRules);
+    const uncoveredRules = new Set(ruleToExamplesMap.keys());
     while (uncoveredRules.size > 0 && finalExamples.length < targetCount) {
-        const randomRule = getRandomElement(Array.from(uncoveredRules));
+        const randomRule = getRandomElement(Array.from(uncoveredRules), random);
         const candidates = ruleToExamplesMap.get(randomRule);
-        if (!candidates || candidates.length === 0) {
+        if (candidates.length === 0) {
             uncoveredRules.delete(randomRule);
             continue;
         }
 
-        const chosenExample = getRandomElement(candidates);
+        const chosenExample = getRandomElement(candidates, random);
         const exampleKey = chosenExample.result.join(',');
 
         if (!finalExampleKeys.has(exampleKey)) {
@@ -49,13 +48,11 @@ export function selectVariedExamples(examplePool, grammar, targetCount, seed) {
         }
     }
 
-    let remainingPool = examplePool.filter(ex => !finalExampleKeys.has(ex.result.join(',')));
-
+    const remainingPool = examplePool.filter(ex => !finalExampleKeys.has(ex.result.join(',')));
     while (finalExamples.length < targetCount && remainingPool.length > 0) {
         const randomIndex = Math.floor(random() * remainingPool.length);
-        const randomExample = remainingPool.splice(randomIndex, 1)[0];
-        finalExamples.push(randomExample);
+        finalExamples.push(remainingPool.splice(randomIndex, 1)[0]);
     }
 
-    return finalExamples.sort((a, b) => a.result.length - b.result.length);
+    return finalExamples;
 }

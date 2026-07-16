@@ -1,52 +1,41 @@
 // js/eventHandlers.js
 
-import { ui, showOverlay, hideOverlay, updateDifficultyButtons } from './ui.js';
+import { ui, showOverlay, hideOverlay, updateDifficultyButtons,
+         clearStickyDerivation } from './ui.js';
 import { startNewGame, validateUserGrammar, getDerivationSteps,
-         setDifficulty, getActiveDifficultyKey, getAndApplyHint } from './game.js';
+         setDifficulty, getActiveDifficultyKey, getAndApplyHint, isGameWon } from './game.js';
 import { showDerivation, hideDerivation } from './derivationVisualizer.js';
+import { setupDragDropEvents } from './dragDrop.js';
 import { copyShareURL } from './urlManager.js';
+import { DIFFICULTIES } from './difficulty.js';
 
 // ---------------------------------------------------------------------------
 // Menu & overlay
 // ---------------------------------------------------------------------------
 
+function openMenu() {
+    // After a win there is nothing to resume, so reuse the win layout.
+    showOverlay('SYSTEM MENU', isGameWon() ? 'win' : 'menu');
+}
+
 function setupMenuEvents() {
-    ui.menuButton.addEventListener('click', () => {
-        showOverlay('SYSTEM MENU', 'menu');
-    });
+    ui.menuButton.addEventListener('click', openMenu);
 
     ui.overlayNewGameButton.addEventListener('click', () => {
         startNewGame();
         hideOverlay();
     });
 
-    ui.overlayResumeButton.addEventListener('click', () => {
-        hideOverlay();
-    });
+    ui.overlayResumeButton.addEventListener('click', hideOverlay);
 
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
-        const isOverlayVisible = !ui.workspaceOverlay.classList.contains('hidden');
-        if (isOverlayVisible) {
-            hideOverlay();
-        } else {
-            showOverlay('SYSTEM MENU', 'menu');
-        }
+        if (ui.workspaceOverlay.classList.contains('hidden')) openMenu();
+        else hideOverlay();
     });
 
     ui.workspaceOverlay.addEventListener('click', (e) => {
         if (e.target === ui.workspaceOverlay) hideOverlay();
-    });
-}
-
-// ---------------------------------------------------------------------------
-// Hint button
-// ---------------------------------------------------------------------------
-
-function setupHintEvents() {
-    if (!ui.hintButton) return;
-    ui.hintButton.addEventListener('click', () => {
-        getAndApplyHint();
     });
 }
 
@@ -58,10 +47,7 @@ let copyFeedbackTimeout = null;
 
 function setupShareEvents() {
     ui.overlayShareButton.addEventListener('click', async () => {
-        if (copyFeedbackTimeout) {
-            clearTimeout(copyFeedbackTimeout);
-            copyFeedbackTimeout = null;
-        }
+        clearTimeout(copyFeedbackTimeout);
 
         try {
             await copyShareURL();
@@ -74,7 +60,6 @@ function setupShareEvents() {
         copyFeedbackTimeout = setTimeout(() => {
             ui.overlayShareButton.textContent = 'COPY CHALLENGE LINK';
             ui.overlayShareButton.classList.remove('btn-share--copied');
-            copyFeedbackTimeout = null;
         }, 2000);
     });
 }
@@ -84,12 +69,21 @@ function setupShareEvents() {
 // ---------------------------------------------------------------------------
 
 function setupDifficultyEvents() {
-    document.querySelectorAll('.btn-difficulty').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const key = btn.dataset.difficulty;
-            setDifficulty(key);
-            updateDifficultyButtons(key);
-        });
+    const container = document.querySelector('.difficulty-buttons');
+
+    for (const key of Object.keys(DIFFICULTIES)) {
+        const btn = document.createElement('button');
+        btn.className = 'btn-difficulty';
+        btn.dataset.difficulty = key;
+        btn.textContent = key;
+        container.appendChild(btn);
+    }
+
+    container.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-difficulty');
+        if (!btn) return;
+        setDifficulty(btn.dataset.difficulty);
+        updateDifficultyButtons(btn.dataset.difficulty);
     });
 
     updateDifficultyButtons(getActiveDifficultyKey());
@@ -99,29 +93,20 @@ function setupDifficultyEvents() {
 // Derivation visualiser
 // ---------------------------------------------------------------------------
 
+function showDerivationForItem(li) {
+    const steps = getDerivationSteps(Number(li.dataset.exampleId));
+    if (steps) showDerivation(li, steps);
+}
+
 function setupDerivationVisualizerEvents() {
     let hoveredListItem = null;
 
-    const clearStickyVisualizer = () => {
-        const currentSticky = ui.examplesList.querySelector('.sticky-visualizer');
-        if (currentSticky) {
-            currentSticky.classList.remove('sticky-visualizer');
-            hideDerivation();
-        }
-    };
-
     ui.examplesList.addEventListener('mouseover', (e) => {
         const targetLi = e.target.closest('li.is-valid:not(.sticky-visualizer)');
-        if (targetLi !== hoveredListItem) {
-            hoveredListItem = targetLi;
-            if (targetLi) {
-                const exampleId = parseInt(targetLi.dataset.exampleId, 10);
-                const steps = getDerivationSteps(exampleId);
-                if (steps) showDerivation(targetLi, steps);
-            } else {
-                hideDerivation();
-            }
-        }
+        if (targetLi === hoveredListItem) return;
+        hoveredListItem = targetLi;
+        if (targetLi) showDerivationForItem(targetLi);
+        else hideDerivation();
     });
 
     ui.examplesList.addEventListener('mouseleave', () => {
@@ -135,31 +120,21 @@ function setupDerivationVisualizerEvents() {
         const listItem = e.target.closest('li.is-valid');
         if (!listItem) return;
 
-        const isAlreadySticky = listItem.classList.contains('sticky-visualizer');
-        clearStickyVisualizer();
+        const wasSticky = listItem.classList.contains('sticky-visualizer');
+        clearStickyDerivation();
 
-        if (!isAlreadySticky) {
+        if (!wasSticky) {
             listItem.classList.add('sticky-visualizer');
-            const exampleId = parseInt(listItem.dataset.exampleId, 10);
-            const steps = getDerivationSteps(exampleId);
-            if (steps) showDerivation(listItem, steps);
+            showDerivationForItem(listItem);
         }
     });
 
     document.addEventListener('click', (e) => {
         const stickyItem = ui.examplesList.querySelector('.sticky-visualizer');
         if (stickyItem && !stickyItem.contains(e.target)) {
-            clearStickyVisualizer();
+            clearStickyDerivation();
         }
     });
-}
-
-// ---------------------------------------------------------------------------
-// Grammar change
-// ---------------------------------------------------------------------------
-
-function setupGrammarEvents() {
-    document.addEventListener('grammarChanged', validateUserGrammar);
 }
 
 // ---------------------------------------------------------------------------
@@ -168,9 +143,10 @@ function setupGrammarEvents() {
 
 export function setupEventListeners() {
     setupMenuEvents();
-    setupHintEvents();
+    ui.hintButton.addEventListener('click', getAndApplyHint);
     setupShareEvents();
     setupDifficultyEvents();
     setupDerivationVisualizerEvents();
-    setupGrammarEvents();
+    setupDragDropEvents();
+    document.addEventListener('grammarChanged', validateUserGrammar);
 }
